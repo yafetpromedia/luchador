@@ -33,10 +33,11 @@ function render_class_calendar(array $opts): void
     $isThisMonth = $stamp === date('Y-m');
     $today = $isThisMonth ? (int) date('j') : 0;
     $dayEvents = $day > 0 ? ($cal['by_day'][$day] ?? []) : [];
-    $list = $day > 0 ? $dayEvents : ($cal['rows'] ?? []);
+    $monthRows = $cal['rows'] ?? [];
     $next = next_published_event();
     $nextStamp = $next && !empty($next['event_date']) ? substr((string) $next['event_date'], 0, 7) : '';
     ?>
+    <div class="class-cal" data-calendar data-cal-month="<?= e($month->format('F')) ?>">
     <div class="cal-toolbar">
         <a class="btn btn-sm btn-ghost" href="<?= e(calendar_href($base, $prevMonth->format('Y-m'), 0, $category, $hash)) ?>"><?= icon('chevron-left', 16) ?> <?= e($prevMonth->format('M')) ?></a>
         <h3><?= e($month->format('F Y')) ?></h3>
@@ -89,7 +90,7 @@ function render_class_calendar(array $opts): void
                 $first = $items[0] ?? null;
             ?>
                 <td>
-                    <a class="<?= e($classes) ?>" href="<?= e($href) ?>">
+                    <a class="<?= e($classes) ?>" href="<?= e($href) ?>" data-cal-day="<?= (int) $d ?>">
                         <span class="cal-num"><?= $d ?></span>
                         <?php if ($has && $first): ?>
                             <span class="cal-title"><?= e($first['title']) ?><?php if (count($items) > 1): ?> <b>+<?= count($items) - 1 ?></b><?php endif; ?></span>
@@ -101,24 +102,21 @@ function render_class_calendar(array $opts): void
         </tbody>
     </table>
 
-    <?php if ($day > 0): ?>
-        <div class="cal-day-panel">
+        <div class="cal-day-panel" data-cal-panel <?= $day > 0 ? '' : 'hidden' ?>>
             <div class="panel-head">
-                <h3><?= e($month->format('F')) ?> <?= (int) $day ?></h3>
-                <a href="<?= e(calendar_href($base, $stamp, 0, $category, $hash)) ?>">All in <?= e($month->format('F')) ?></a>
+                <h3 data-cal-heading><?= $day > 0 ? e($month->format('F') . ' ' . $day) : '' ?></h3>
+                <a href="<?= e(calendar_href($base, $stamp, 0, $category, $hash)) ?>" data-cal-clear>All in <?= e($month->format('F')) ?></a>
             </div>
-            <?php if (!$dayEvents): ?>
-                <p class="muted">No class events on this day.</p>
-            <?php endif; ?>
+            <p class="muted" data-cal-empty <?= ($day > 0 && !$dayEvents) ? '' : 'hidden' ?>>No class events on this day.</p>
         </div>
-    <?php endif; ?>
 
-    <?php if ($list): ?>
+    <?php if ($monthRows): ?>
         <?php $studentRows = str_contains($eventBase, 'student/'); ?>
         <?php if ($studentRows): ?>
             <div class="stu-event-list" style="margin-top:1rem">
-                <?php foreach ($list as $event): ?>
-                    <a class="stu-event-row" href="<?= e(url($eventBase . '?id=' . (int) $event['id'])) ?>">
+                <?php foreach ($monthRows as $event): ?>
+                    <?php $eventDay = event_day_number((string) ($event['event_date'] ?? '')); ?>
+                    <a class="stu-event-row" data-cal-item="<?= (int) $eventDay ?>" <?= ($day > 0 && $eventDay !== $day) ? 'hidden' : '' ?> href="<?= e(url($eventBase . '?id=' . (int) $event['id'])) ?>">
                         <time class="stu-event-when" datetime="<?= e((string) ($event['event_date'] ?? '')) ?>">
                             <span><?= e(format_date($event['event_date'] ?? null, 'M') ?: 'TBA') ?></span>
                             <b><?= e(format_date($event['event_date'] ?? null, 'j') ?: '—') ?></b>
@@ -136,8 +134,9 @@ function render_class_calendar(array $opts): void
             </div>
         <?php else: ?>
         <ol class="editorial-list cal-agenda">
-            <?php foreach ($list as $event): ?>
-                <li>
+            <?php foreach ($monthRows as $event): ?>
+                <?php $eventDay = event_day_number((string) ($event['event_date'] ?? '')); ?>
+                <li data-cal-item="<?= (int) $eventDay ?>" <?= ($day > 0 && $eventDay !== $day) ? 'hidden' : '' ?>>
                     <span class="editorial-index"><?= !empty($event['event_date']) ? e(format_date($event['event_date'], 'j')) : '—' ?></span>
                     <div>
                         <strong><a href="<?= e(url($eventBase . '?id=' . (int) $event['id'])) ?>"><?= e($event['title']) ?></a></strong>
@@ -151,14 +150,14 @@ function render_class_calendar(array $opts): void
             <?php endforeach; ?>
         </ol>
         <?php endif; ?>
-    <?php elseif ($day === 0): ?>
-        <p class="muted cal-empty-month">No published events in <?= e($month->format('F Y')) ?>.</p>
+    <?php endif; ?>
+        <p class="muted cal-empty-month" data-cal-empty-month <?= $monthRows || $day > 0 ? 'hidden' : '' ?>>No published events in <?= e($month->format('F Y')) ?>.</p>
         <?php if ($next && !empty($next['event_date']) && $nextStamp !== $stamp): ?>
-            <p class="cal-jump">
+            <p class="cal-jump" data-cal-next-month <?= $monthRows || $day > 0 ? 'hidden' : '' ?>>
                 <a href="<?= e(calendar_href($base, $nextStamp, 0, $category, $hash)) ?>">Go to <?= e(format_date($next['event_date'], 'F Y')) ?></a>
                 · <?= e($next['title']) ?>
             </p>
         <?php endif; ?>
-    <?php endif; ?>
+    </div>
     <?php
 }

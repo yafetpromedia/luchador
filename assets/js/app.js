@@ -488,4 +488,65 @@
             if (hideIcon) hideIcon.hidden = hide;
         });
     });
+
+    document.querySelectorAll('[data-calendar]').forEach((root) => {
+        const days = [...root.querySelectorAll('[data-cal-day]')];
+        const items = [...root.querySelectorAll('[data-cal-item]')];
+        const panel = root.querySelector('[data-cal-panel]');
+        const heading = root.querySelector('[data-cal-heading]');
+        const empty = root.querySelector('[data-cal-empty]');
+        const emptyMonth = root.querySelector('[data-cal-empty-month]');
+        const nextMonth = root.querySelector('[data-cal-next-month]');
+        const clear = root.querySelector('[data-cal-clear]');
+        const monthName = root.getAttribute('data-cal-month') || '';
+
+        const apply = (day, href) => {
+            days.forEach((el) => el.classList.toggle('is-selected', Number(el.getAttribute('data-cal-day')) === day));
+            let shown = 0;
+            items.forEach((item) => {
+                const match = day < 1 || Number(item.getAttribute('data-cal-item')) === day;
+                item.hidden = !match;
+                if (match) shown += 1;
+            });
+            if (panel) {
+                panel.hidden = day < 1;
+            }
+            if (heading) {
+                heading.textContent = day > 0 ? monthName + ' ' + day : '';
+            }
+            if (empty) {
+                empty.hidden = !(day > 0 && shown === 0);
+            }
+            if (emptyMonth) {
+                emptyMonth.hidden = day > 0 || items.length > 0;
+            }
+            if (nextMonth) {
+                nextMonth.hidden = day > 0 || items.length > 0;
+            }
+            if (href) {
+                try {
+                    const url = new URL(href, window.location.href);
+                    history.replaceState(null, '', url.pathname + url.search + url.hash);
+                } catch (err) { /* keep current URL */ }
+            }
+        };
+
+        root.addEventListener('click', (e) => {
+            const clearLink = e.target.closest('[data-cal-clear]');
+            if (clearLink && root.contains(clearLink)) {
+                e.preventDefault();
+                apply(0, clearLink.getAttribute('href'));
+                return;
+            }
+            const dayEl = e.target.closest('[data-cal-day]');
+            if (!dayEl || !root.contains(dayEl)) return;
+            e.preventDefault();
+            const picked = Number(dayEl.getAttribute('data-cal-day'));
+            if (dayEl.classList.contains('is-selected')) {
+                apply(0, clear ? clear.getAttribute('href') : dayEl.getAttribute('href'));
+                return;
+            }
+            apply(picked, dayEl.getAttribute('href'));
+        });
+    });
 })();

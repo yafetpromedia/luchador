@@ -160,7 +160,7 @@ function admin_footer(): void
             </div>
         </div>
     </div>
-    <script src="<?= e(url('assets/js/app.js')) ?>?v=8"></script>
+    <script src="<?= e(url('assets/js/app.js')) ?>?v=10"></script>
     <script src="<?= e(url('assets/js/admin.js')) ?>?v=7"></script>
 </body>
 </html>

@@ -1055,6 +1055,7 @@ body:not(.admin-body) .cover .btn-ghost:hover {
 .cal-empty-month { margin-top: 0.85rem; }
 .cal-day-panel { margin-top: 0.85rem; }
 .cal-day-panel h3 { margin: 0; font-size: 1rem; }
+[data-cal-item][hidden] { display: none !important; }
 .cal-dots {
     display: flex;
     flex-wrap: wrap;
