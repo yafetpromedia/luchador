@@ -79,6 +79,15 @@ admin_page_head('Preview the roster, choose columns, then download Word, CSV, or
         </div>
         <input type="hidden" name="size" value="<?= e($filters['size']) ?>">
         <input type="hidden" name="status" value="<?= e($filters['status']) ?>">
+        <div class="form-group">
+            <label for="filter_section">Section</label>
+            <select id="filter_section" name="section">
+                <option value="">All sections</option>
+                <?php foreach (class_sections() as $sectionName): ?>
+                    <option value="<?= e($sectionName) ?>" <?= ($filters['section'] ?? '') === $sectionName ? 'selected' : '' ?>><?= e(class_section_label($sectionName)) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
         <button class="btn btn-ghost" type="submit">Apply</button>
     </div>
 

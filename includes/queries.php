@@ -372,6 +372,10 @@ function fetch_students(array $filters = []): array
         $sql .= ' AND size = ?';
         $params[] = $filters['size'];
     }
+    if (!empty($filters['section'])) {
+        $sql .= ' AND section = ?';
+        $params[] = $filters['section'];
+    }
     if (!empty($filters['status'])) {
         if ($filters['status'] === 'missing') {
             $sql .= " AND (size IS NULL OR size = '')";

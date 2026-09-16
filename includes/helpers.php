@@ -190,6 +190,24 @@ function add_column_if_missing(PDO $pdo, string $table, string $column, string $
     }
 }
 
+function ensure_varchar_min(PDO $pdo, string $table, string $column, int $length, string $definition): void
+{
+    if (!column_exists($pdo, $table, $column)) {
+        $pdo->exec("ALTER TABLE `$table` ADD COLUMN `$column` $definition");
+        return;
+    }
+    $stmt = $pdo->prepare(
+        'SELECT CHARACTER_MAXIMUM_LENGTH FROM information_schema.columns
+         WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?'
+    );
+    $stmt->execute([$table, $column]);
+    $current = $stmt->fetchColumn();
+    if ($current !== false && $current !== null && (int) $current >= $length) {
+        return;
+    }
+    $pdo->exec("ALTER TABLE `$table` MODIFY `$column` $definition");
+}
+
 function index_exists(PDO $pdo, string $table, string $index): bool
 {
     $stmt = $pdo->prepare(
@@ -345,6 +363,68 @@ function status_label(string $status): string
 function uniform_sizes(): array
 {
     return ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+}
+
+function class_sections(): array
+{
+    return [
+        'Grade 12 Natural Science A',
+        'Grade 12 Natural Science B',
+        'Grade 12 Social Science',
+    ];
+}
+
+function class_section_label(string $section): string
+{
+    $section = trim($section);
+    if ($section === '') {
+        return '';
+    }
+    $short = preg_replace('/^Grade\s*12\s+/i', '', $section);
+    return is_string($short) && $short !== '' ? $short : $section;
+}
+
+function normalize_class_section(string $raw): string
+{
+    $raw = trim($raw);
+    if ($raw === '') {
+        return '';
+    }
+    foreach (class_sections() as $section) {
+        if (strcasecmp($raw, $section) === 0) {
+            return $section;
+        }
+    }
+    $key = strtolower(preg_replace('/[\s\-_.\/]+/', ' ', $raw) ?? $raw);
+    $key = trim($key);
+    $aliases = [
+        'grade 12 natural science a' => 'Grade 12 Natural Science A',
+        '12 natural science a' => 'Grade 12 Natural Science A',
+        'natural science a' => 'Grade 12 Natural Science A',
+        'natural a' => 'Grade 12 Natural Science A',
+        'ns a' => 'Grade 12 Natural Science A',
+        'nsa' => 'Grade 12 Natural Science A',
+        'grade 12 nsa' => 'Grade 12 Natural Science A',
+        'grade 12 natural science b' => 'Grade 12 Natural Science B',
+        '12 natural science b' => 'Grade 12 Natural Science B',
+        'natural science b' => 'Grade 12 Natural Science B',
+        'natural b' => 'Grade 12 Natural Science B',
+        'ns b' => 'Grade 12 Natural Science B',
+        'nsb' => 'Grade 12 Natural Science B',
+        'grade 12 nsb' => 'Grade 12 Natural Science B',
+        'grade 12 social science' => 'Grade 12 Social Science',
+        '12 social science' => 'Grade 12 Social Science',
+        'social science' => 'Grade 12 Social Science',
+        'social' => 'Grade 12 Social Science',
+        'ss' => 'Grade 12 Social Science',
+        'grade 12 ss' => 'Grade 12 Social Science',
+    ];
+    return $aliases[$key] ?? $raw;
+}
+
+function is_class_section(string $section): bool
+{
+    return in_array($section, class_sections(), true);
 }
 
 function greeting(): string

@@ -118,7 +118,18 @@
     };
     const setFormValue = (id, value) => {
         const el = document.getElementById(id);
-        if (el) el.value = value ?? '';
+        if (!el) return;
+        const next = value ?? '';
+        if (el.tagName === 'SELECT' && next !== '') {
+            const exists = Array.from(el.options).some((opt) => opt.value === next);
+            if (!exists) {
+                const opt = document.createElement('option');
+                opt.value = next;
+                opt.textContent = next;
+                el.appendChild(opt);
+            }
+        }
+        el.value = next;
     };
     const setFormPhoto = (src, name) => {
         const preview = document.getElementById('student-form-preview');
@@ -140,6 +151,10 @@
     const resetStudentForm = () => {
         if (!studentForm) return;
         studentForm.reset();
+        const sectionSelect = document.getElementById('section');
+        if (sectionSelect) {
+            Array.from(sectionSelect.querySelectorAll('option:not([data-official]):not([value=""])')).forEach((opt) => opt.remove());
+        }
         setFormValue('student-form-id', '');
         setFormValue('grade', studentForm.getAttribute('data-default-grade') || '');
         setFormValue('quantity', '1');

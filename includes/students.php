@@ -10,6 +10,7 @@ function student_payload(array $src): array
     $allowedSizes = uniform_sizes();
     $allowedStatus = ['pending', 'ordered', 'ready', 'collected'];
     $allowedPayment = ['unpaid', 'partial', 'paid'];
+    $section = normalize_class_section((string) ($src['section'] ?? ''));
 
     return [
         'student_name' => trim((string) ($src['student_name'] ?? '')),
@@ -21,7 +22,7 @@ function student_payload(array $src): array
         'size' => in_array($size, $allowedSizes, true) ? $size : '',
         'student_code' => trim((string) ($src['student_code'] ?? '')) ?: null,
         'grade' => trim((string) ($src['grade'] ?? class_grade())) ?: class_grade(),
-        'section' => trim((string) ($src['section'] ?? '')) ?: null,
+        'section' => $section !== '' ? $section : null,
         'quantity' => max(1, (int) ($src['quantity'] ?? 1)),
         'status' => in_array($status, $allowedStatus, true) ? $status : 'pending',
         'payment_status' => in_array($payment, $allowedPayment, true) ? $payment : 'unpaid',
@@ -36,6 +37,10 @@ function validate_student(array $data): ?string
     }
     if ($data['phone_number'] === '' && empty($data['mother_phone']) && empty($data['father_phone'])) {
         return 'Add a student phone, mother phone, or father phone.';
+    }
+    $section = (string) ($data['section'] ?? '');
+    if ($section !== '' && !is_class_section($section)) {
+        return 'Section must be Grade 12 Natural Science A, Grade 12 Natural Science B, or Grade 12 Social Science.';
     }
     return null;
 }
@@ -240,12 +245,13 @@ function student_import_instruction_lines(): array
         '1. Fill the Students sheet. Keep the header row. Do not rename the columns.',
         '2. Required: Full name, Uniform size, and at least one phone (student, mother, or father).',
         '3. Uniform size must be one of: ' . implode(', ', uniform_sizes()) . '.',
-        '4. Uniform status (optional): pending, ordered, ready, collected. Default is pending.',
-        '5. Payment (optional): unpaid, partial, paid. Default is unpaid.',
-        '6. Format phone columns as Text in Excel so zeros are not dropped.',
-        '7. Existing students are never overwritten. Matching is by Student ID, or by full name + student phone.',
-        '8. Save as Excel (.xlsx) or CSV, then upload it on the Students import page.',
-        '9. Leave unused optional columns blank. Do not invent names just to fill the sheet.',
+        '4. Section (optional) must be one of: ' . implode('; ', class_sections()) . '.',
+        '5. Uniform status (optional): pending, ordered, ready, collected. Default is pending.',
+        '6. Payment (optional): unpaid, partial, paid. Default is unpaid.',
+        '7. Format phone columns as Text in Excel so zeros are not dropped.',
+        '8. Existing students are never overwritten. Matching is by Student ID, or by full name + student phone.',
+        '9. Save as Excel (.xlsx) or CSV, then upload it on the Students import page.',
+        '10. Leave unused optional columns blank. Do not invent names just to fill the sheet.',
     ];
 }
 

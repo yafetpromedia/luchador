@@ -38,7 +38,14 @@ function run_migrations(PDO $pdo): void
     ");
     add_column_if_missing($pdo, 'uniforms', 'student_code', 'VARCHAR(50) NULL');
     add_column_if_missing($pdo, 'uniforms', 'grade', "VARCHAR(10) NOT NULL DEFAULT '12'");
-    add_column_if_missing($pdo, 'uniforms', 'section', 'VARCHAR(20) NULL');
+    add_column_if_missing($pdo, 'uniforms', 'section', 'VARCHAR(80) NULL');
+    ensure_varchar_min($pdo, 'uniforms', 'section', 80, 'VARCHAR(80) NULL');
+    add_index_if_missing(
+        $pdo,
+        'uniforms',
+        'idx_uniforms_section',
+        'ALTER TABLE uniforms ADD INDEX idx_uniforms_section (section)'
+    );
     add_column_if_missing($pdo, 'uniforms', 'quantity', 'INT NOT NULL DEFAULT 1');
     add_column_if_missing($pdo, 'uniforms', 'status', "VARCHAR(20) NOT NULL DEFAULT 'pending'");
     add_column_if_missing($pdo, 'uniforms', 'payment_status', "VARCHAR(20) NOT NULL DEFAULT 'unpaid'");
@@ -378,6 +385,14 @@ function migrate_student_profile(PDO $pdo): void
     add_column_if_missing($pdo, 'uniforms', 'father_name', 'VARCHAR(100) NULL');
     add_column_if_missing($pdo, 'uniforms', 'father_phone', 'VARCHAR(30) NULL');
     add_column_if_missing($pdo, 'uniforms', 'photo', 'VARCHAR(255) NULL');
+    add_column_if_missing($pdo, 'uniforms', 'section', 'VARCHAR(80) NULL');
+    ensure_varchar_min($pdo, 'uniforms', 'section', 80, 'VARCHAR(80) NULL');
+    add_index_if_missing(
+        $pdo,
+        'uniforms',
+        'idx_uniforms_section',
+        'ALTER TABLE uniforms ADD INDEX idx_uniforms_section (section)'
+    );
 }
 
 function migrate_profile_requests(PDO $pdo): void

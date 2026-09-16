@@ -88,7 +88,7 @@ admin_header($student['student_name'], 'students');
             }
         ?></dd></div>
         <div><dt>Grade</dt><dd><?= e($student['grade'] ?: class_grade()) ?></dd></div>
-        <div><dt>Section</dt><dd><?= e($student['section'] ?: 'Not set') ?></dd></div>
+        <div><dt>Section</dt><dd><?= e($student['section'] ? class_section_label((string) $student['section']) : 'Not set') ?></dd></div>
     </dl>
 </section>
 

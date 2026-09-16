@@ -6,6 +6,7 @@ function report_column_catalog(): array
 {
     return [
         'include_code' => ['label' => 'Student ID', 'default' => true],
+        'include_section' => ['label' => 'Section', 'default' => true],
         'include_phone' => ['label' => 'Student phone', 'default' => true],
         'include_family' => ['label' => 'Parents', 'default' => false],
         'include_size' => ['label' => 'Uniform size', 'default' => true],
@@ -30,9 +31,14 @@ function report_filters_from(array $src): array
 {
     $status = trim((string) ($src['status'] ?? ''));
     $allowed = ['pending', 'ordered', 'ready', 'collected', 'missing'];
+    $section = normalize_class_section((string) ($src['section'] ?? ''));
+    if ($section !== '' && !is_class_section($section)) {
+        $section = '';
+    }
     return [
         'search' => trim((string) ($src['search'] ?? '')),
         'size' => trim((string) ($src['size'] ?? '')),
+        'section' => $section,
         'status' => in_array($status, $allowed, true) ? $status : '',
         'sort' => 'name',
     ];
@@ -79,6 +85,9 @@ function report_headers(array $columns): array
     if (!empty($columns['include_code'])) {
         $headers[] = 'Student ID';
     }
+    if (!empty($columns['include_section'])) {
+        $headers[] = 'Section';
+    }
     if (!empty($columns['include_phone'])) {
         $headers[] = 'Student phone';
     }
@@ -103,6 +112,9 @@ function report_row(array $student, array $columns, int $index): array
     $row = [$index, (string) ($student['student_name'] ?? '')];
     if (!empty($columns['include_code'])) {
         $row[] = (string) ($student['student_code'] ?? '');
+    }
+    if (!empty($columns['include_section'])) {
+        $row[] = class_section_label((string) ($student['section'] ?? ''));
     }
     if (!empty($columns['include_phone'])) {
         $row[] = (string) ($student['phone_number'] ?? '');
@@ -131,6 +143,9 @@ function report_filter_labels(array $filters): array
     }
     if ($filters['size'] !== '') {
         $labels[] = 'Size ' . $filters['size'];
+    }
+    if (($filters['section'] ?? '') !== '') {
+        $labels[] = class_section_label((string) $filters['section']);
     }
     if ($filters['status'] !== '') {
         $labels[] = $filters['status'] === 'missing' ? 'No size' : status_label($filters['status']);

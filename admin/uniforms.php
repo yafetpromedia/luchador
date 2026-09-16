@@ -30,6 +30,7 @@ if (is_post()) {
     $return = http_build_query(array_filter([
         'search' => posted('return_search'),
         'size' => posted('return_size'),
+        'section' => posted('return_section'),
         'status' => posted('return_status'),
         'page' => posted('return_page'),
     ], static fn ($value) => $value !== ''));
@@ -39,9 +40,13 @@ if (is_post()) {
 $filters = [
     'search' => trim((string) ($_GET['search'] ?? '')),
     'size' => trim((string) ($_GET['size'] ?? '')),
+    'section' => normalize_class_section((string) ($_GET['section'] ?? '')),
     'status' => trim((string) ($_GET['status'] ?? '')),
     'sort' => 'name',
 ];
+if ($filters['section'] !== '' && !is_class_section($filters['section'])) {
+    $filters['section'] = '';
+}
 $all = fetch_students($filters);
 $page = max(1, request_int('page', 1));
 $perPage = 20;
@@ -117,6 +122,15 @@ admin_page_head(
             <?php endforeach; ?>
         </select>
     </div>
+    <div class="form-group">
+        <label for="uniform-section">Section</label>
+        <select id="uniform-section" name="section">
+            <option value="">All sections</option>
+            <?php foreach (class_sections() as $sectionName): ?>
+                <option value="<?= e($sectionName) ?>" <?= $filters['section'] === $sectionName ? 'selected' : '' ?>><?= e(class_section_label($sectionName)) ?></option>
+            <?php endforeach; ?>
+        </select>
+    </div>
     <button class="btn btn-ghost" type="submit">Filter</button>
 </form>
 
@@ -147,7 +161,7 @@ admin_page_head(
                     <?php endif; ?>
                     <span>
                         <strong><?= e($row['student_name']) ?></strong>
-                        <span class="muted"><?= e($row['student_code'] ?: ($row['phone_number'] ?: 'No ID')) ?></span>
+                        <span class="muted"><?= e($row['student_code'] ?: ($row['phone_number'] ?: 'No ID')) ?><?= !empty($row['section']) ? ' · ' . e(class_section_label((string) $row['section'])) : '' ?></span>
                     </span>
                 </a>
             </td>
@@ -163,6 +177,7 @@ admin_page_head(
                     <input type="hidden" name="id" value="<?= (int) $row['id'] ?>">
                     <input type="hidden" name="return_search" value="<?= e($filters['search']) ?>">
                     <input type="hidden" name="return_size" value="<?= e($filters['size']) ?>">
+                    <input type="hidden" name="return_section" value="<?= e($filters['section']) ?>">
                     <input type="hidden" name="return_status" value="<?= e($filters['status']) ?>">
                     <input type="hidden" name="return_page" value="<?= (int) $pageData['page'] ?>">
                     <select name="status" aria-label="Uniform status for <?= e($row['student_name']) ?>">
@@ -200,6 +215,7 @@ admin_page_head(
             </h3>
             <dl class="record-meta">
                 <div><dt>Size</dt><dd><?= $sizeMissing ? 'No size' : e($row['size']) ?></dd></div>
+                <div><dt>Section</dt><dd><?= !empty($row['section']) ? e(class_section_label((string) $row['section'])) : 'Not set' ?></dd></div>
                 <div><dt>Status</dt><dd><span class="badge badge-<?= e($status) ?>"><?= e(status_label($status)) ?></span></dd></div>
                 <div><dt>Payment</dt><dd><?= e(status_label($row['payment_status'] ?? 'unpaid')) ?></dd></div>
             </dl>
@@ -210,6 +226,7 @@ admin_page_head(
                 <input type="hidden" name="id" value="<?= (int) $row['id'] ?>">
                 <input type="hidden" name="return_search" value="<?= e($filters['search']) ?>">
                 <input type="hidden" name="return_size" value="<?= e($filters['size']) ?>">
+                <input type="hidden" name="return_section" value="<?= e($filters['section']) ?>">
                 <input type="hidden" name="return_status" value="<?= e($filters['status']) ?>">
                 <input type="hidden" name="return_page" value="<?= (int) $pageData['page'] ?>">
                 <div class="row-actions">

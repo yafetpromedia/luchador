@@ -45,6 +45,7 @@ if (is_post()) {
             $filters = [
                 'search' => posted('search'),
                 'size' => posted('size'),
+                'section' => posted('section'),
                 'status' => posted('status'),
                 'sort' => posted('sort') !== '' ? posted('sort') : 'name',
             ];
@@ -62,6 +63,7 @@ if (is_post()) {
             $return = http_build_query(array_filter([
                 'search' => $filters['search'],
                 'size' => $filters['size'],
+                'section' => $filters['section'],
                 'status' => $filters['status'],
             ], static fn ($value) => $value !== ''));
             redirect('admin/students.php' . ($return !== '' ? '?' . $return : ''));
@@ -172,9 +174,13 @@ if (is_post()) {
 $filters = [
     'search' => trim((string) ($_GET['search'] ?? '')),
     'size' => trim((string) ($_GET['size'] ?? '')),
+    'section' => normalize_class_section((string) ($_GET['section'] ?? '')),
     'status' => trim((string) ($_GET['status'] ?? '')),
     'sort' => trim((string) ($_GET['sort'] ?? 'name')),
 ];
+if ($filters['section'] !== '' && !is_class_section($filters['section'])) {
+    $filters['section'] = '';
+}
 $all = fetch_students($filters);
 $page = max(1, request_int('page', 1));
 $perPage = 15;
@@ -295,7 +301,7 @@ admin_page_head('Manage the Grade 12 class roster.', $studentActions);
         <a class="btn" href="<?= e(url('admin/students.php?download=xlsx')) ?>"><?= icon('download', 16) ?> Excel template</a>
         <a class="btn btn-ghost" href="<?= e(url('admin/students.php?download=template')) ?>">CSV template</a>
     </div>
-    <p class="muted">Required: Full name, Uniform size (<?= e(implode(', ', uniform_sizes())) ?>), and at least one phone. Format phone columns as Text in Excel.</p>
+    <p class="muted">Required: Full name, Uniform size (<?= e(implode(', ', uniform_sizes())) ?>), and at least one phone. Section must be one of the three Grade 12 groups if filled. Format phone columns as Text in Excel.</p>
     <form method="post" enctype="multipart/form-data" data-loading data-loading-label="Uploading…">
         <?= csrf_field() ?>
         <input type="hidden" name="action" value="import_preview">
@@ -371,6 +377,15 @@ admin_page_head('Manage the Grade 12 class roster.', $studentActions);
         </select>
     </div>
     <div class="form-group">
+        <label for="filter_section">Section</label>
+        <select id="filter_section" name="section">
+            <option value="">All</option>
+            <?php foreach (class_sections() as $sectionName): ?>
+                <option value="<?= e($sectionName) ?>" <?= $filters['section'] === $sectionName ? 'selected' : '' ?>><?= e(class_section_label($sectionName)) ?></option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+    <div class="form-group">
         <label for="filter_status">Status</label>
         <select id="filter_status" name="status">
             <option value="">All</option>
@@ -392,6 +407,7 @@ admin_page_head('Manage the Grade 12 class roster.', $studentActions);
     <input type="hidden" name="delete_matching" id="delete-matching" value="0">
     <input type="hidden" name="search" value="<?= e($filters['search']) ?>">
     <input type="hidden" name="size" value="<?= e($filters['size']) ?>">
+    <input type="hidden" name="section" value="<?= e($filters['section']) ?>">
     <input type="hidden" name="status" value="<?= e($filters['status']) ?>">
     <p class="roster-bulk-count"><strong data-selected-count>0</strong> selected</p>
     <button type="button" class="btn btn-ghost btn-sm" data-select-page>Select this page</button>
@@ -409,12 +425,12 @@ admin_page_head('Manage the Grade 12 class roster.', $studentActions);
                 <?php if ($canBulk): ?>
                     <th class="roster-check"><label class="sr-only" for="select-page">Select page</label><input id="select-page" type="checkbox" data-select-page-check></th>
                 <?php endif; ?>
-                <th>Student</th><th>ID</th><th>Student phone</th><th>Mother</th><th>Father</th><th>Uniform</th><th>Status</th><th></th>
+                <th>Student</th><th>ID</th><th>Section</th><th>Student phone</th><th>Mother</th><th>Father</th><th>Uniform</th><th>Status</th><th></th>
             </tr>
         </thead>
         <tbody>
         <?php if (!$rows): ?>
-            <tr><td colspan="<?= $canBulk ? 9 : 8 ?>">No students found.</td></tr>
+            <tr><td colspan="<?= $canBulk ? 10 : 9 ?>">No students found.</td></tr>
         <?php else: foreach ($rows as $row): ?>
             <?php $view = student_view_payload($row); ?>
             <tr>
@@ -435,6 +451,7 @@ admin_page_head('Manage the Grade 12 class roster.', $studentActions);
                     <?php if (!empty($pendingIds[(int) $row['id']])): ?><span class="badge badge-pending">Update waiting</span><?php endif; ?>
                 </td>
                 <td><?= e($row['student_code'] ?: '—') ?></td>
+                <td><?= ($row['section'] ?? '') !== '' ? e(class_section_label((string) $row['section'])) : '—' ?></td>
                 <td><?= e($row['phone_number'] ?: '—') ?></td>
                 <td class="roster-parent"><?php if (($view['mother_name'] === '') && ($view['mother_phone'] === '')): ?>—<?php else: ?><?php if ($view['mother_name'] !== ''): ?><span><?= e($view['mother_name']) ?></span><?php endif; ?><?php if ($view['mother_phone'] !== ''): ?><span><?= e($view['mother_phone']) ?></span><?php endif; ?><?php endif; ?></td>
                 <td class="roster-parent"><?php if (($view['father_name'] === '') && ($view['father_phone'] === '')): ?>—<?php else: ?><?php if ($view['father_name'] !== ''): ?><span><?= e($view['father_name']) ?></span><?php endif; ?><?php if ($view['father_phone'] !== ''): ?><span><?= e($view['father_phone']) ?></span><?php endif; ?><?php endif; ?></td>
@@ -536,7 +553,15 @@ admin_page_head('Manage the Grade 12 class roster.', $studentActions);
                 <div class="form-group"><label for="student_code">Student ID</label><input id="student_code" name="student_code"></div>
                 <div class="form-group"><label for="phone_number">Student phone</label><input id="phone_number" name="phone_number" inputmode="tel" autocomplete="tel"></div>
                 <div class="form-group"><label for="grade">Grade</label><input id="grade" name="grade" value="<?= e(class_grade()) ?>"></div>
-                <div class="form-group"><label for="section">Section</label><input id="section" name="section"></div>
+                <div class="form-group">
+                    <label for="section">Section</label>
+                    <select id="section" name="section">
+                        <option value="">Choose section</option>
+                        <?php foreach (class_sections() as $sectionName): ?>
+                            <option value="<?= e($sectionName) ?>" data-official="1"><?= e($sectionName) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
             </div>
 
             <p class="section-label">Family</p>
