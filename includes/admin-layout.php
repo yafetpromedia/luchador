@@ -57,7 +57,7 @@ function admin_header(string $title, string $active = 'index'): void
     <title><?= e($title) ?> · <?= e(class_name()) ?> Admin</title>
     <link rel="icon" href="<?= e(url('assets/images/favicon.svg')) ?>" type="image/svg+xml">
     <?php site_font_links(); ?>
-    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=46">
+    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=47">
     <link rel="stylesheet" href="<?= e(url('assets/css/admin.css')) ?>?v=34">
 </head>
 <body class="admin-body">

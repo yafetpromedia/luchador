@@ -59,7 +59,7 @@ function save_settings(array $values): void
 
 function class_name(): string
 {
-    return setting('class_name', 'LUCHADORE');
+    return setting('class_name', 'LUCHADOR');
 }
 
 function class_grade(): string

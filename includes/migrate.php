@@ -586,6 +586,15 @@ function migrate_interactions(PDO $pdo): void
     add_index_if_missing($pdo, 'polls', 'idx_polls_decision', 'CREATE INDEX idx_polls_decision ON polls (is_decision, status)');
 }
 
+function migrate_class_brand(PDO $pdo): void
+{
+    if (!table_exists($pdo, 'settings')) {
+        return;
+    }
+    $pdo->exec("UPDATE settings SET setting_value = REPLACE(setting_value, 'LUCHADORE', 'LUCHADOR')");
+    $pdo->exec("UPDATE settings SET setting_value = REPLACE(setting_value, 'Luchadore', 'Luchador')");
+}
+
 function ensure_schema(): void
 {
     static $done = false;
@@ -617,6 +626,7 @@ function ensure_schema(): void
         migrate_payments($pdo);
         migrate_notifications($pdo);
         migrate_interactions($pdo);
+        migrate_class_brand($pdo);
     } catch (Throwable $e) {
         app_log('ensure_schema: ' . $e->getMessage());
     }

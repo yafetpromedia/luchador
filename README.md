@@ -1,4 +1,4 @@
-# LUCHADORE
+# LUCHADOR
 
 Grade 12 class portal for Bright Side International School.
 

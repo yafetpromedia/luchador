@@ -44,12 +44,12 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luchadore setup</title>
+    <title>Luchador setup</title>
     <link rel="stylesheet" href="assets/css/app.css">
 </head>
 <body class="auth-body">
     <main class="auth-card">
-        <p class="eyebrow">LUCHADORE</p>
+        <p class="eyebrow">LUCHADOR</p>
         <h1>Database setup</h1>
         <?php foreach ($errors as $error): ?>
             <div class="alert alert-error"><?= e($error) ?></div>

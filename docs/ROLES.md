@@ -1,4 +1,4 @@
-# Luchadore roles, permissions, and accounts
+# Luchador roles, permissions, and accounts
 
 Authentication is shared across Super Admin, committee members, and students. There is one login page (`login.php`) and one session system.
 

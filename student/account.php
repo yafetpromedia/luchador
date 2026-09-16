@@ -30,7 +30,7 @@ student_header('Account', 'account', lead: 'Password and sign-in.');
 
 <?php if ($mustChange): ?>
     <div class="security-callout" role="alert">
-        <h2>Welcome to Luchadore</h2>
+        <h2>Welcome to Luchador</h2>
         <p>Please change your temporary password before continuing.</p>
     </div>
 <?php endif; ?>

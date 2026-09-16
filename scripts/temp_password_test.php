@@ -47,7 +47,7 @@ echo 'login_redirect=' . $login['code'] . ' loc=' . (preg_match('/Location: (.+)
 $dash = req($base . '/student/dashboard.php');
 echo 'dashboard_while_temp=' . $dash['code'] . ' loc=' . (preg_match('/Location: (.+)/i', $dash['header'], $d) ? trim($d[1]) : '') . PHP_EOL;
 $account = req($base . '/student/account.php');
-echo 'account_page=' . $account['code'] . ' welcome=' . (str_contains($account['body'], 'Welcome to Luchadore') ? 'yes' : 'no') . PHP_EOL;
+echo 'account_page=' . $account['code'] . ' welcome=' . (str_contains($account['body'], 'Welcome to Luchador') ? 'yes' : 'no') . PHP_EOL;
 
 $id = (int) db()->query('SELECT id FROM users WHERE username = ' . db()->quote($username))->fetchColumn();
 db()->prepare('DELETE FROM users WHERE id = ?')->execute([$id]);

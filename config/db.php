@@ -58,7 +58,7 @@ try {
     if (defined('APP_SETUP') && APP_SETUP) {
         $pdo = null;
     } else {
-        error_log('Luchadore DB connection failed: ' . $e->getMessage());
+        error_log('Luchador DB connection failed: ' . $e->getMessage());
         http_response_code(503);
         exit('The application is temporarily unavailable.');
     }

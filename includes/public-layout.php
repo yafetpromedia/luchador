@@ -36,7 +36,7 @@ function public_header(string $title, string $active = 'home', string $descripti
     <?php endif; ?>
     <link rel="icon" href="<?= e(url('assets/images/favicon.svg')) ?>" type="image/svg+xml">
     <?php site_font_links(); ?>
-    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=45">
+    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=47">
 </head>
 <body class="<?= $onePage ? 'onepage' : '' ?>">
     <a class="skip-link" href="#main">Skip to content</a>

@@ -237,7 +237,7 @@ function client_ip(): ?string
 function setting_defaults(): array
 {
     return [
-        'class_name' => 'LUCHADORE',
+        'class_name' => 'LUCHADOR',
         'grade' => '12',
         'school_name' => 'Bright Side International School',
         'academic_year' => '',
@@ -249,10 +249,10 @@ function setting_defaults(): array
         'graduation_message' => '',
         'countdown_enabled' => '0',
         'hero_tagline' => 'One class. One journey. One final chapter.',
-        'hero_message' => 'The senior year of Luchadore at Bright Side International School — a shared record of the people, work, and moments that close this chapter.',
-        'about_who' => 'Luchadore is the Grade 12 class of Bright Side International School. This portal is the digital home of the senior class: a public record of identity, events, and leadership, and a working space for class organization.',
-        'about_community' => 'We are a diverse group of students with different talents and interests, united as one class. Luchadore is a community first — classmates, officers, and friends moving through the same final year together.',
-        'about_academic' => 'Senior year is demanding. Luchadore aims for academic excellence while keeping a healthy balance: focused work, mutual support, and a finish that the class can be proud of.',
+        'hero_message' => 'The senior year of Luchador at Bright Side International School — a shared record of the people, work, and moments that close this chapter.',
+        'about_who' => 'Luchador is the Grade 12 class of Bright Side International School. This portal is the digital home of the senior class: a public record of identity, events, and leadership, and a working space for class organization.',
+        'about_community' => 'We are a diverse group of students with different talents and interests, united as one class. Luchador is a community first — classmates, officers, and friends moving through the same final year together.',
+        'about_academic' => 'Senior year is demanding. Luchador aims for academic excellence while keeping a healthy balance: focused work, mutual support, and a finish that the class can be proud of.',
         'class_message' => '',
         'hero_image' => '',
         'payment_purpose' => '',

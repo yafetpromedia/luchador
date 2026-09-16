@@ -6,7 +6,7 @@
     <title>Access Restricted · <?= e(class_name()) ?></title>
     <link rel="icon" href="<?= e(url('assets/images/favicon.svg')) ?>" type="image/svg+xml">
     <?php site_font_links(); ?>
-    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=30">
+    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=47">
 </head>
 <body class="auth-body">
     <main class="auth-card forbidden-card">
