@@ -100,7 +100,7 @@ admin_page_head(
 <?php if ($requests): ?>
 <section class="panel" id="verify">
     <h2>Waiting for verification</h2>
-    <p class="muted">Open the receipt, check it against your account, then approve or reject. Approving updates payment status only — student records are not duplicated.</p>
+    <p class="muted">Open the receipt, check it against your account, then approve or reject. The same transaction ID or receipt photo cannot be used by two students. Approving updates payment status only — student records are not duplicated.</p>
     <div class="profile-request-list">
         <?php foreach ($requests as $req): ?>
             <?php $receipt = trim((string) ($req['receipt'] ?? '')); ?>
@@ -152,6 +152,18 @@ admin_page_head(
                         </a>
                     <?php endif; ?>
                 </div>
+                <?php
+                $conflicts = payment_request_conflict_messages($req);
+                if ($conflicts):
+                ?>
+                    <div class="pay-dup" role="status">
+                        <strong>Possible duplicate</strong>
+                        <?php foreach ($conflicts as $message): ?>
+                            <p><?= e($message) ?></p>
+                        <?php endforeach; ?>
+                        <p>Approve only the student who actually paid. Reject the shared receipt.</p>
+                    </div>
+                <?php endif; ?>
                 <?php if ($canManage): ?>
                 <div class="form-actions">
                     <form method="post" class="row-actions">

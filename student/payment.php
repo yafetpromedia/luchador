@@ -140,7 +140,7 @@ student_header('Pay', 'payment', lead: 'Copy a class account, pay, then send the
             <?= csrf_field() ?>
             <input type="hidden" name="action" value="payment_request">
             <p class="eyebrow">Send proof</p>
-            <p class="muted">Pay first, then upload a photo of the receipt or transfer screenshot. Status stays unpaid until it is approved.</p>
+            <p class="muted">Pay first, then upload a photo of your own receipt or transfer screenshot. A transaction ID or photo already used by another student is rejected. Status stays unpaid until it is approved.</p>
             <div class="form-grid">
                 <?php if ($accounts): ?>
                 <div class="form-group">
@@ -154,7 +154,10 @@ student_header('Pay', 'payment', lead: 'Copy a class account, pay, then send the
                 </div>
                 <?php endif; ?>
                 <div class="form-group"><label for="amount">Amount (ETB)</label><input id="amount" type="text" name="amount" inputmode="decimal" autocomplete="off" value="<?= e($due) ?>" placeholder="0.00"></div>
-                <div class="form-group"><label for="reference">Reference / transaction ID</label><input id="reference" type="text" name="reference" autocomplete="off" placeholder="From the receipt"></div>
+                <div class="form-group">
+                    <label class="req" for="reference">Reference / transaction ID</label>
+                    <input id="reference" type="text" name="reference" autocomplete="off" maxlength="80" required placeholder="From your receipt">
+                </div>
                 <div class="form-group">
                     <label for="claimed_status">This covers</label>
                     <select id="claimed_status" name="claimed_status">

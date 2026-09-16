@@ -28,6 +28,158 @@ function format_etb(null|string|float|int $amount): string
     return 'ETB ' . number_format((float) $amount, 2);
 }
 
+function payment_reference_key(string $raw): string
+{
+    $key = strtoupper(trim($raw));
+    $key = preg_replace('/[\s\-_.]+/', '', $key) ?? '';
+    return excerpt($key, 80);
+}
+
+function payment_file_sha256(string $path): ?string
+{
+    if ($path === '' || !is_file($path)) {
+        return null;
+    }
+    $hash = hash_file('sha256', $path);
+    return is_string($hash) && $hash !== '' ? $hash : null;
+}
+
+function payment_receipt_hash_from_path(string $relativePath): ?string
+{
+    $relativePath = str_replace('\\', '/', trim($relativePath));
+    if ($relativePath === '' || str_contains($relativePath, '..') || !str_starts_with($relativePath, 'uploads/')) {
+        return null;
+    }
+    return payment_file_sha256(APP_ROOT . '/' . $relativePath);
+}
+
+function payment_proof_columns_ready(): bool
+{
+    static $ready = null;
+    if ($ready !== null) {
+        return $ready;
+    }
+    $pdo = db();
+    $ready = table_exists($pdo, 'payment_requests')
+        && column_exists($pdo, 'payment_requests', 'reference_key')
+        && column_exists($pdo, 'payment_requests', 'receipt_hash');
+    return $ready;
+}
+
+function payment_proof_conflicts(
+    int $studentId,
+    string $referenceKey,
+    ?string $receiptHash,
+    ?int $excludeRequestId = null,
+    array $statuses = ['pending', 'approved', 'rejected']
+): array {
+    if ($studentId <= 0 || !payment_proof_columns_ready()) {
+        return [];
+    }
+    $allowed = ['pending', 'approved', 'rejected', 'cancelled'];
+    $statuses = array_values(array_intersect($statuses, $allowed));
+    if ($statuses === []) {
+        return [];
+    }
+
+    $conflicts = [];
+    $in = implode(',', array_fill(0, count($statuses), '?'));
+    $excludeSql = $excludeRequestId ? ' AND r.id <> ?' : '';
+
+    if ($referenceKey !== '') {
+        $sql = "SELECT r.id, r.student_id, r.status, r.reference, 'reference' AS conflict, u.student_name, u.student_code
+                FROM payment_requests r
+                INNER JOIN uniforms u ON u.id = r.student_id
+                WHERE r.student_id <> ?
+                  AND r.status IN ($in)
+                  AND r.reference_key = ?
+                  $excludeSql
+                ORDER BY r.id ASC LIMIT 1";
+        $params = array_merge([$studentId], $statuses, [$referenceKey]);
+        if ($excludeRequestId) {
+            $params[] = $excludeRequestId;
+        }
+        $stmt = db()->prepare($sql);
+        $stmt->execute($params);
+        $row = $stmt->fetch();
+        if ($row) {
+            $conflicts[] = $row;
+        }
+    }
+
+    $hash = trim((string) $receiptHash);
+    if ($hash !== '') {
+        $sql = "SELECT r.id, r.student_id, r.status, r.reference, 'receipt' AS conflict, u.student_name, u.student_code
+                FROM payment_requests r
+                INNER JOIN uniforms u ON u.id = r.student_id
+                WHERE r.student_id <> ?
+                  AND r.status IN ($in)
+                  AND r.receipt_hash = ?
+                  $excludeSql
+                ORDER BY r.id ASC LIMIT 1";
+        $params = array_merge([$studentId], $statuses, [$hash]);
+        if ($excludeRequestId) {
+            $params[] = $excludeRequestId;
+        }
+        $stmt = db()->prepare($sql);
+        $stmt->execute($params);
+        $row = $stmt->fetch();
+        if ($row) {
+            $conflicts[] = $row;
+        }
+    }
+
+    return $conflicts;
+}
+
+function payment_request_conflict_messages(array $request): array
+{
+    $conflicts = payment_proof_conflicts(
+        (int) ($request['student_id'] ?? 0),
+        trim((string) ($request['reference_key'] ?? '')),
+        trim((string) ($request['receipt_hash'] ?? '')) ?: null,
+        (int) ($request['id'] ?? 0) ?: null
+    );
+    $messages = [];
+    foreach ($conflicts as $row) {
+        $who = trim((string) ($row['student_name'] ?? 'Another student'));
+        $code = trim((string) ($row['student_code'] ?? ''));
+        if ($code !== '') {
+            $who .= ' (ID ' . $code . ')';
+        }
+        $state = (string) ($row['status'] ?? 'pending');
+        if (($row['conflict'] ?? '') === 'receipt') {
+            $messages[] = 'This receipt photo was already sent by ' . $who . ' (' . $state . ').';
+        } else {
+            $messages[] = 'This transaction ID was already sent by ' . $who . ' (' . $state . ').';
+        }
+    }
+    return $messages;
+}
+
+function assert_unique_payment_proof(array $conflicts, bool $forStudent = true): void
+{
+    if (!$conflicts) {
+        return;
+    }
+    $kinds = array_unique(array_map(static fn(array $row): string => (string) ($row['conflict'] ?? ''), $conflicts));
+    if ($forStudent) {
+        if (in_array('receipt', $kinds, true) && in_array('reference', $kinds, true)) {
+            throw new InvalidArgumentException('This receipt and transaction ID are already on file for another student. Send your own payment proof.');
+        }
+        if (in_array('receipt', $kinds, true)) {
+            throw new InvalidArgumentException('This receipt photo was already sent by another student. Upload your own transfer screenshot.');
+        }
+        throw new InvalidArgumentException('This transaction ID is already on file for another student. Use the ID from your own receipt.');
+    }
+    $first = $conflicts[0];
+    $who = trim((string) ($first['student_name'] ?? 'another student'));
+    if (($first['conflict'] ?? '') === 'receipt') {
+        throw new InvalidArgumentException('This receipt photo was already approved for ' . $who . '. Reject the duplicate first.');
+    }
+    throw new InvalidArgumentException('This transaction ID was already approved for ' . $who . '. Reject the duplicate first.');
+}
+
 function parse_payment_amount(string $raw): ?string
 {
     $raw = trim(str_replace([',', ' '], '', $raw));
@@ -207,6 +359,10 @@ function submit_payment_request(array $student, array $src, array $files, int $u
     }
     $amount = parse_payment_amount((string) ($src['amount'] ?? ''));
     $reference = excerpt(trim((string) ($src['reference'] ?? '')), 80);
+    $referenceKey = payment_reference_key($reference);
+    if ($reference === '' || strlen($referenceKey) < 4) {
+        throw new InvalidArgumentException('Enter the full transaction ID from your own receipt.');
+    }
     $note = excerpt(trim((string) ($src['student_note'] ?? '')), 180);
 
     $accountId = (int) ($src['account_id'] ?? 0);
@@ -221,7 +377,9 @@ function submit_payment_request(array $student, array $src, array $files, int $u
 
     $existing = pending_payment_request($studentId);
     $receipt = $existing['receipt'] ?? null;
+    $receiptHash = trim((string) ($existing['receipt_hash'] ?? '')) ?: null;
     if (!empty($files['receipt']['name'])) {
+        $receiptHash = payment_file_sha256((string) ($files['receipt']['tmp_name'] ?? ''));
         $upload = store_upload($files['receipt'], 'payments');
         if (!$upload['ok']) {
             throw new InvalidArgumentException($upload['error']);
@@ -230,10 +388,25 @@ function submit_payment_request(array $student, array $src, array $files, int $u
             delete_upload((string) $receipt);
         }
         $receipt = $upload['path'];
+        if (!$receiptHash && $receipt) {
+            $receiptHash = payment_receipt_hash_from_path((string) $receipt);
+        }
     }
     if (!$receipt) {
         throw new InvalidArgumentException('Upload a photo of the receipt or transfer screenshot.');
     }
+    if (!$receiptHash && $receipt) {
+        $receiptHash = payment_receipt_hash_from_path((string) $receipt);
+    }
+
+    assert_unique_payment_proof(
+        payment_proof_conflicts(
+            $studentId,
+            $referenceKey,
+            $receiptHash,
+            $existing ? (int) $existing['id'] : null
+        )
+    );
 
     $snapshot = $account ? payment_account_snapshot($account) : excerpt(trim((string) ($src['account_label'] ?? '')), 180);
     $params = [
@@ -242,7 +415,9 @@ function submit_payment_request(array $student, array $src, array $files, int $u
         $snapshot !== '' ? $snapshot : null,
         $amount,
         $reference !== '' ? $reference : null,
+        $referenceKey !== '' ? $referenceKey : null,
         $receipt,
+        $receiptHash,
         $note !== '' ? $note : null,
         $claimed,
         $studentId,
@@ -251,17 +426,17 @@ function submit_payment_request(array $student, array $src, array $files, int $u
     if ($existing) {
         db()->prepare(
             "UPDATE payment_requests
-             SET user_id=?, account_id=?, account_label=?, amount=?, reference=?, receipt=?, student_note=?, claimed_status=?, status='pending', note=NULL, reviewed_by=NULL, reviewed_at=NULL
+             SET user_id=?, account_id=?, account_label=?, amount=?, reference=?, reference_key=?, receipt=?, receipt_hash=?, student_note=?, claimed_status=?, status='pending', note=NULL, reviewed_by=NULL, reviewed_at=NULL
              WHERE id=? AND student_id=?"
         )->execute([
-            $params[0], $params[1], $params[2], $params[3], $params[4], $params[5], $params[6], $params[7],
+            $params[0], $params[1], $params[2], $params[3], $params[4], $params[5], $params[6], $params[7], $params[8], $params[9],
             (int) $existing['id'],
             $studentId,
         ]);
     } else {
         db()->prepare(
-            "INSERT INTO payment_requests (user_id, account_id, account_label, amount, reference, receipt, student_note, claimed_status, student_id, status)
-             VALUES (?,?,?,?,?,?,?,?,?, 'pending')"
+            "INSERT INTO payment_requests (user_id, account_id, account_label, amount, reference, reference_key, receipt, receipt_hash, student_note, claimed_status, student_id, status)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?, 'pending')"
         )->execute($params);
     }
 
@@ -282,7 +457,7 @@ function cancel_payment_request(int $studentId, int $userId): void
         throw new InvalidArgumentException('You can only withdraw your own payment proof.');
     }
     delete_upload((string) ($existing['receipt'] ?? ''));
-    db()->prepare("UPDATE payment_requests SET status = 'cancelled', receipt = NULL, reviewed_at = NOW() WHERE id = ?")->execute([(int) $existing['id']]);
+    db()->prepare("UPDATE payment_requests SET status = 'cancelled', receipt = NULL, receipt_hash = NULL, reviewed_at = NOW() WHERE id = ?")->execute([(int) $existing['id']]);
 }
 
 function approve_payment_request(int $requestId, string $status = ''): array
@@ -302,6 +477,17 @@ function approve_payment_request(int $requestId, string $status = ''): array
     if (!in_array($status, ['paid', 'partial'], true)) {
         $status = 'paid';
     }
+
+    assert_unique_payment_proof(
+        payment_proof_conflicts(
+            (int) $request['student_id'],
+            trim((string) ($request['reference_key'] ?? '')),
+            trim((string) ($request['receipt_hash'] ?? '')) ?: null,
+            (int) $request['id'],
+            ['approved']
+        ),
+        false
+    );
 
     db()->prepare('UPDATE uniforms SET payment_status = ? WHERE id = ?')->execute([$status, (int) $student['id']]);
 

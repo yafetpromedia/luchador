@@ -430,7 +430,9 @@ function migrate_payments(PDO $pdo): void
             account_label VARCHAR(180) NULL,
             amount DECIMAL(12,2) NULL,
             reference VARCHAR(80) NULL,
+            reference_key VARCHAR(80) NULL,
             receipt VARCHAR(255) NULL,
+            receipt_hash CHAR(64) NULL,
             student_note VARCHAR(255) NULL,
             claimed_status VARCHAR(20) NOT NULL DEFAULT 'paid',
             status VARCHAR(20) NOT NULL DEFAULT 'pending',
@@ -442,6 +444,55 @@ function migrate_payments(PDO $pdo): void
             INDEX idx_payment_requests_status (status)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
+    add_column_if_missing($pdo, 'payment_requests', 'reference_key', 'VARCHAR(80) NULL');
+    add_column_if_missing($pdo, 'payment_requests', 'receipt_hash', 'CHAR(64) NULL');
+    add_index_if_missing(
+        $pdo,
+        'payment_requests',
+        'idx_payment_requests_reference_key',
+        'ALTER TABLE payment_requests ADD INDEX idx_payment_requests_reference_key (reference_key)'
+    );
+    add_index_if_missing(
+        $pdo,
+        'payment_requests',
+        'idx_payment_requests_receipt_hash',
+        'ALTER TABLE payment_requests ADD INDEX idx_payment_requests_receipt_hash (receipt_hash)'
+    );
+    backfill_payment_proof_keys($pdo);
+}
+
+function backfill_payment_proof_keys(PDO $pdo): void
+{
+    if (!column_exists($pdo, 'payment_requests', 'reference_key') || !column_exists($pdo, 'payment_requests', 'receipt_hash')) {
+        return;
+    }
+    $rows = $pdo->query(
+        "SELECT id, reference, receipt, receipt_hash
+         FROM payment_requests
+         WHERE (reference_key IS NULL OR reference_key = '')
+            OR ((receipt_hash IS NULL OR receipt_hash = '') AND receipt IS NOT NULL AND receipt != '')"
+    )->fetchAll();
+    if (!$rows) {
+        return;
+    }
+    $update = $pdo->prepare('UPDATE payment_requests SET reference_key = ?, receipt_hash = ? WHERE id = ?');
+    foreach ($rows as $row) {
+        $key = strtoupper(trim((string) ($row['reference'] ?? '')));
+        $key = preg_replace('/[\s\-_.]+/', '', $key) ?? '';
+        $key = $key !== '' ? substr($key, 0, 80) : null;
+        $hash = trim((string) ($row['receipt_hash'] ?? ''));
+        if ($hash === '') {
+            $relative = str_replace('\\', '/', (string) ($row['receipt'] ?? ''));
+            if ($relative !== '' && !str_contains($relative, '..') && str_starts_with($relative, 'uploads/')) {
+                $full = APP_ROOT . '/' . $relative;
+                if (is_file($full)) {
+                    $computed = hash_file('sha256', $full);
+                    $hash = is_string($computed) && $computed !== '' ? $computed : '';
+                }
+            }
+        }
+        $update->execute([$key !== '' ? $key : null, $hash !== '' ? $hash : null, (int) $row['id']]);
+    }
 }
 
 function migrate_notifications(PDO $pdo): void
