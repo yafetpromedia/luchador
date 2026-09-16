@@ -473,4 +473,19 @@
         select.addEventListener('change', apply);
         apply();
     });
+
+    document.querySelectorAll('[data-password-toggle]').forEach((btn) => {
+        const field = btn.closest('.password-field')?.querySelector('input');
+        if (!field) return;
+        const showIcon = btn.querySelector('[data-show]');
+        const hideIcon = btn.querySelector('[data-hide]');
+        btn.addEventListener('click', () => {
+            const hide = field.type === 'text';
+            field.type = hide ? 'password' : 'text';
+            btn.setAttribute('aria-pressed', hide ? 'false' : 'true');
+            btn.setAttribute('aria-label', hide ? 'Show password' : 'Hide password');
+            if (showIcon) showIcon.hidden = !hide;
+            if (hideIcon) hideIcon.hidden = hide;
+        });
+    });
 })();

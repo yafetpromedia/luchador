@@ -1666,6 +1666,34 @@ tbody tr:last-child td { border-bottom: 0; }
     box-shadow: 0 0 0 1000px #111113 inset;
     transition: background-color 99999s ease-out;
 }
+.password-field {
+    position: relative;
+}
+.password-field input {
+    padding-right: 2.85rem;
+}
+.password-toggle {
+    position: absolute;
+    right: 0.35rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2.2rem;
+    height: 2.2rem;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #a1a1aa;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+}
+.password-toggle:hover,
+.password-toggle:focus-visible {
+    color: #fafafa;
+    background: #27272a;
+}
+.password-toggle .icon { display: block; }
 .auth-submit {
     width: 100%;
     margin-top: 0.25rem;

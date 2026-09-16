@@ -53,7 +53,7 @@ if (is_post()) {
     <title>Sign in · <?= e(class_name()) ?></title>
     <link rel="icon" href="<?= e(url('assets/images/favicon.svg')) ?>" type="image/svg+xml">
     <?php site_font_links(); ?>
-    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=47">
+    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=48">
 </head>
 <body class="auth-body">
     <div class="auth-motion" aria-hidden="true">
@@ -87,7 +87,13 @@ if (is_post()) {
                 </div>
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <input id="password" name="password" type="password" autocomplete="current-password" required>
+                    <div class="password-field">
+                        <input id="password" name="password" type="password" autocomplete="current-password" required>
+                        <button type="button" class="password-toggle" data-password-toggle aria-controls="password" aria-pressed="false" aria-label="Show password">
+                            <span data-show><?= icon('eye', 18) ?></span>
+                            <span data-hide hidden><?= icon('eye-off', 18) ?></span>
+                        </button>
+                    </div>
                 </div>
                 <button class="btn auth-submit" type="submit">Sign in</button>
             </form>
@@ -95,6 +101,6 @@ if (is_post()) {
             <p><a class="text-link" href="<?= e(url('index.php')) ?>">Back to the class <?= icon('arrow-right', 16) ?></a></p>
         </section>
     </main>
-    <script src="<?= e(url('assets/js/app.js')) ?>?v=3"></script>
+    <script src="<?= e(url('assets/js/app.js')) ?>?v=9"></script>
 </body>
 </html>
