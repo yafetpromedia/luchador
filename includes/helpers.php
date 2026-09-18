@@ -562,6 +562,29 @@ function first_name(string $name): string
     return (string) ($parts[0] ?? $name);
 }
 
+function ascii_login_slug(string $value): string
+{
+    $value = normalize_login_input($value);
+    if ($value === '') {
+        return '';
+    }
+    if (function_exists('iconv')) {
+        $converted = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
+        if (is_string($converted) && $converted !== '') {
+            $value = $converted;
+        }
+    }
+    $value = strtolower($value);
+    $slug = preg_replace('/[^a-z0-9]+/', '', $value) ?? '';
+    return $slug;
+}
+
+function normalize_login_input(string $value): string
+{
+    $value = preg_replace('/[\x{00A0}\x{200B}-\x{200D}\x{FEFF}]/u', '', $value) ?? $value;
+    return trim($value);
+}
+
 function person_initials(string $name): string
 {
     $name = trim($name);

@@ -22,13 +22,11 @@ function student_account_id(int $studentId): ?int
 
 function student_account_username(array $student): string
 {
-    $code = preg_replace('/[^A-Za-z0-9._-]/', '', (string) ($student['student_code'] ?? '')) ?? '';
+    $code = ascii_login_slug((string) ($student['student_code'] ?? ''));
     if (strlen($code) >= 2) {
-        $base = strtolower($code);
+        $base = $code;
     } else {
-        $name = trim((string) ($student['student_name'] ?? ''));
-        $parts = preg_split('/\s+/', $name) ?: [];
-        $first = strtolower(preg_replace('/[^a-z0-9]/', '', (string) ($parts[0] ?? '')) ?? '');
+        $first = ascii_login_slug(first_name((string) ($student['student_name'] ?? '')));
         $base = strlen($first) >= 3 ? $first : ('s' . (int) ($student['id'] ?? 0));
     }
     $username = $base;
@@ -87,7 +85,7 @@ function create_student_user_account(array $student, ?string $plainPassword = nu
     $username = student_account_username($student);
     $fullName = trim((string) ($student['student_name'] ?? '')) ?: $username;
     db()->prepare(
-        'INSERT INTO users (username, password, must_change_password, full_name, role, is_active, student_id)
+        'INSERT INTO users (username, `password`, must_change_password, full_name, role, is_active, student_id)
          VALUES (?, ?, 1, ?, ?, 1, ?)'
     )->execute([
         $username,
@@ -167,60 +165,213 @@ function render_student_login_slips(array $payload): void
     <?php site_font_links(); ?>
     <style>
         @page { size: A4; margin: 10mm; }
+        :root {
+            --ink: #111113;
+            --muted: #71717a;
+            --line: #e4e4e7;
+            --paper: #f4f4f5;
+            --card: #fff;
+            --fill: #f4f4f5;
+            --font: Inter, system-ui, sans-serif;
+            --mono: ui-monospace, SFMono-Regular, Consolas, monospace;
+        }
         * { box-sizing: border-box; }
-        body { margin: 0; color: #16151a; background: #f4f2ee; font-family: Inter, Segoe UI, Arial, sans-serif; }
-        .toolbar { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; justify-content: space-between; padding: 1rem 1.2rem; background: #fff; border-bottom: 1px solid #eceae6; }
-        .toolbar p { margin: 0; color: #5f5c56; font-size: 0.92rem; }
-        .btn { display: inline-flex; align-items: center; gap: 0.4rem; background: #16151a; color: #fff; border: 0; border-radius: 8px; padding: 10px 16px; font: inherit; font-weight: 600; cursor: pointer; text-decoration: none; }
-        .btn-ghost { background: transparent; color: #16151a; border: 1px solid #d8d4cc; }
-        .sheet { padding: 1rem 1.2rem 2rem; }
-        .slips { display: grid; grid-template-columns: 1fr 1fr; gap: 8mm; }
-        .slip { background: #fff; border: 1px dashed #b7b2a8; padding: 8mm 9mm; break-inside: avoid; page-break-inside: avoid; }
-        .slip-kicker { margin: 0; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: #73706a; }
-        .slip h2 { margin: 0.2rem 0 0.7rem; font-size: 1.12rem; letter-spacing: -0.03em; }
-        .slip dl { margin: 0; }
-        .slip dt { margin: 0.55rem 0 0; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #73706a; }
-        .slip dd { margin: 0.15rem 0 0; font-size: 1.02rem; word-break: break-word; }
-        .slip .secret { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 1.12rem; letter-spacing: 0.04em; }
-        .slip .hint { margin: 0.85rem 0 0; font-size: 0.78rem; color: #5f5c56; line-height: 1.45; }
+        body {
+            margin: 0;
+            color: var(--ink);
+            background: var(--paper);
+            font-family: var(--font);
+            -webkit-font-smoothing: antialiased;
+        }
+        .toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.9rem 1.25rem;
+            background: rgba(255, 255, 255, 0.92);
+            border-bottom: 1px solid var(--line);
+            backdrop-filter: blur(12px);
+        }
+        .toolbar p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.84rem;
+            letter-spacing: -0.01em;
+        }
+        .toolbar-actions { display: flex; gap: 0.45rem; flex-shrink: 0; }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 36px;
+            padding: 0 14px;
+            border: 0;
+            border-radius: 999px;
+            background: var(--ink);
+            color: #fff;
+            font: inherit;
+            font-size: 0.84rem;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .btn-ghost {
+            background: transparent;
+            color: var(--ink);
+            border: 1px solid var(--line);
+        }
+        .sheet { padding: 1.25rem; }
+        .slips {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+        .slip {
+            display: flex;
+            flex-direction: column;
+            padding: 22px 22px 18px;
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .slip-top {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .brand {
+            margin: 0;
+            font-size: 0.68rem;
+            font-weight: 600;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+        }
+        .meta {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.68rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        .slip h2 {
+            margin: 18px 0 4px;
+            font-size: 1.28rem;
+            font-weight: 600;
+            letter-spacing: -0.045em;
+            line-height: 1.15;
+        }
+        .school {
+            margin: 0 0 16px;
+            color: var(--muted);
+            font-size: 0.78rem;
+        }
+        .creds {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .cred {
+            min-width: 0;
+            padding: 10px 12px 11px;
+            background: var(--fill);
+            border-radius: 12px;
+        }
+        .cred span {
+            display: block;
+            margin-bottom: 3px;
+            color: var(--muted);
+            font-size: 0.68rem;
+            letter-spacing: 0.04em;
+        }
+        .cred b {
+            display: block;
+            font-family: var(--mono);
+            font-size: 1.18rem;
+            font-weight: 650;
+            letter-spacing: 0.03em;
+            line-height: 1.3;
+            word-break: break-all;
+            user-select: all;
+        }
+        .url {
+            margin: 14px 0 0;
+            color: var(--muted);
+            font-size: 0.75rem;
+            line-height: 1.45;
+            word-break: break-all;
+        }
+        .url b {
+            display: block;
+            margin-top: 1px;
+            color: var(--ink);
+            font-size: 0.8rem;
+            font-weight: 500;
+            user-select: all;
+        }
+        .hint {
+            margin: auto 0 0;
+            padding-top: 14px;
+            color: var(--muted);
+            font-size: 0.72rem;
+            line-height: 1.45;
+        }
         @media print {
             body { background: #fff; }
             .toolbar { display: none; }
             .sheet { padding: 0; }
-            .slip { box-shadow: none; }
+            .slips { gap: 8mm; }
+            .slip {
+                border-radius: 0;
+                border-color: #d4d4d8;
+            }
+            .cred { background: #f4f4f5; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
         @media (max-width: 720px) {
-            .slips { grid-template-columns: 1fr; }
+            .slips, .creds { grid-template-columns: 1fr; }
+            .sheet { padding: 1rem; }
         }
     </style>
 </head>
 <body>
     <div class="toolbar">
-        <p><?= e((string) $count) ?> login <?= $count === 1 ? 'slip' : 'slips' ?> · Cut and give one to each student. These passwords are shown only this once.</p>
-        <div>
-            <button class="btn" type="button" onclick="window.print()">Print slips</button>
+        <p><?= (int) $count ?> <?= $count === 1 ? 'slip' : 'slips' ?> · Cut one per student. Passwords are shown only this once.</p>
+        <div class="toolbar-actions">
+            <button class="btn" type="button" onclick="window.print()">Print</button>
             <a class="btn btn-ghost" href="<?= e(url('admin/student-accounts.php')) ?>">Back</a>
         </div>
     </div>
     <div class="sheet">
         <div class="slips">
             <?php foreach ($rows as $row): ?>
+                <?php $studentCode = trim((string) ($row['student_code'] ?? '')); ?>
                 <article class="slip">
-                    <p class="slip-kicker"><?= e($school) ?> · <?= e($class) ?> · Grade <?= e($grade) ?></p>
+                    <div class="slip-top">
+                        <p class="brand"><?= e($class) ?></p>
+                        <p class="meta">Grade <?= e($grade) ?></p>
+                    </div>
                     <h2><?= e((string) ($row['full_name'] ?? '')) ?></h2>
-                    <dl>
-                        <dt>Sign in at</dt>
-                        <dd><?= e($loginUrl) ?></dd>
-                        <dt>Username</dt>
-                        <dd class="secret"><?= e((string) ($row['username'] ?? '')) ?></dd>
-                        <?php if (trim((string) ($row['student_code'] ?? '')) !== ''): ?>
-                            <dt>Student ID</dt>
-                            <dd><?= e((string) $row['student_code']) ?></dd>
-                        <?php endif; ?>
-                        <dt>Temporary password</dt>
-                        <dd class="secret"><?= e((string) ($row['password'] ?? '')) ?></dd>
-                    </dl>
-                    <p class="hint">You can also sign in with your student ID or full name. Change this password after the first sign-in.</p>
+                    <p class="school"><?= e($school) ?><?= $studentCode !== '' ? ' · ' . e($studentCode) : '' ?></p>
+                    <div class="creds">
+                        <div class="cred">
+                            <span>Username</span>
+                            <b><?= e((string) ($row['username'] ?? '')) ?></b>
+                        </div>
+                        <div class="cred">
+                            <span>Password</span>
+                            <b><?= e((string) ($row['password'] ?? '')) ?></b>
+                        </div>
+                    </div>
+                    <p class="url">Sign in at<b><?= e($loginUrl) ?></b></p>
+                    <p class="hint">You can also use your full name. Change this password after the first sign-in.</p>
                 </article>
             <?php endforeach; ?>
         </div>

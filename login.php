@@ -38,8 +38,10 @@ if (is_post()) {
         } catch (RuntimeException $e) {
             if ($e->getMessage() === 'disabled') {
                 $error = 'This account is currently disabled. Please contact the class administrator.';
+            } elseif ($e->getMessage() === 'not_found') {
+                $error = 'No class account matches that username. Use the exact username on your slip, or your full name.';
             } else {
-                $error = 'Invalid username or password.';
+                $error = 'That password does not match this account. Check the slip, or ask an administrator to reset it.';
             }
         }
     }
@@ -83,7 +85,7 @@ if (is_post()) {
                 <input type="hidden" name="next" value="<?= e($next) ?>">
                 <div class="form-group">
                     <label for="username">Username or student ID</label>
-                    <input id="username" name="username" type="text" autocomplete="username" autocapitalize="off" spellcheck="false" required autofocus placeholder="Username, student ID, or full name">
+                    <input id="username" name="username" type="text" autocomplete="username" autocapitalize="off" spellcheck="false" required autofocus placeholder="Username, student ID, or full name" value="<?= e(is_post() ? posted('username') : '') ?>">
                 </div>
                 <div class="form-group">
                     <label for="password">Password</label>
@@ -98,6 +100,9 @@ if (is_post()) {
                 <button class="btn auth-submit" type="submit">Sign in</button>
             </form>
             <p class="auth-hint">Use your username, student ID, or full name, plus the password from the class administrator. If you never received a login, you are on the roster but do not have an account yet.</p>
+            <?php if (!app_is_production()): ?>
+                <p class="auth-hint">This is the local copy. Printed student slips sign in at <a href="https://luchador.yafetpromedia.com/login.php">luchador.yafetpromedia.com/login.php</a>.</p>
+            <?php endif; ?>
             <p><a class="text-link" href="<?= e(url('index.php')) ?>">Back to the class <?= icon('arrow-right', 16) ?></a></p>
         </section>
     </main>
