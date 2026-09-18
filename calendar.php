@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/includes/bootstrap.php';
+require_once __DIR__ . '/includes/queries.php';
 
 $query = [];
 $month = request_str('month');
@@ -17,4 +18,4 @@ if ($day > 0) {
 if ($category !== '' && $category !== 'all') {
     $query['category'] = $category;
 }
-redirect_class_section('events', $query);
+redirect_public_section('events', $query);

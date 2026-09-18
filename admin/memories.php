@@ -33,20 +33,23 @@ if (is_post()) {
             if ($body === '') {
                 throw new InvalidArgumentException('Memory text is required.');
             }
+            $visibility = posted_visibility($edit);
+            $published = published_flag_for_visibility($visibility);
             $params = [
                 $body,
                 posted('attribution') ?: null,
                 posted('context') ?: null,
                 posted('memory_on') ?: null,
-                posted('published') === '1' ? 1 : 0,
+                $published,
+                $visibility,
             ];
             if ($id) {
                 $params[] = $id;
-                db()->prepare('UPDATE memories SET body=?, attribution=?, context=?, memory_on=?, published=? WHERE id=?')->execute($params);
+                db()->prepare('UPDATE memories SET body=?, attribution=?, context=?, memory_on=?, published=?, visibility=? WHERE id=?')->execute($params);
                 log_audit('memory.save', 'memory', $id, $body);
                 flash_set('success', 'Memory updated.');
             } else {
-                db()->prepare('INSERT INTO memories (body, attribution, context, memory_on, published) VALUES (?,?,?,?,?)')->execute($params);
+                db()->prepare('INSERT INTO memories (body, attribution, context, memory_on, published, visibility) VALUES (?,?,?,?,?,?)')->execute($params);
                 log_audit('memory.save', 'memory', (int) db()->lastInsertId(), $body);
                 flash_set('success', 'Memory created.');
             }
@@ -76,7 +79,7 @@ admin_page_head('Short written memories. Attribution is optional. Do not publish
             <div class="form-group"><label>Attribution</label><input name="attribution" value="<?= e($edit['attribution'] ?? '') ?>" placeholder="Optional first name or “A classmate”"></div>
             <div class="form-group"><label>Context</label><input name="context" value="<?= e($edit['context'] ?? '') ?>" placeholder="Class trip, optional"></div>
             <div class="form-group"><label>Date</label><input type="date" name="memory_on" value="<?= e($edit['memory_on'] ?? '') ?>"></div>
-            <div class="form-group full"><label class="check"><input type="checkbox" name="published" value="1" <?= !empty($edit['published']) ? 'checked' : '' ?>> Published</label></div>
+            <?= visibility_select($edit) ?>
         </div>
         <div class="form-actions" style="margin-top:1rem">
             <button class="btn" type="submit">Save memory</button>
@@ -96,7 +99,7 @@ admin_page_head('Short written memories. Attribution is optional. Do not publish
             <footer>
                 <span class="quote-who"><?= e($row['attribution'] ?: 'A classmate') ?><?= !empty($row['context']) ? ' · ' . e($row['context']) : '' ?></span>
                 <div class="row-actions">
-                    <?= admin_published_badge($row['published'] ?? 0) ?>
+                    <?= admin_visibility_badge($row) ?>
                     <?php if (can('memories.manage')): ?>
                     <a class="btn btn-sm btn-ghost" href="?edit=<?= (int) $row['id'] ?>">Edit</a>
                     <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int) $row['id'] ?>"><button class="btn btn-sm btn-danger" data-confirm="This action cannot be undone." data-confirm-title="Delete memory?">Delete</button></form>

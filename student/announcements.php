@@ -8,7 +8,7 @@ require_once dirname(__DIR__) . '/includes/queries.php';
 
 student_boot();
 
-$items = table_exists(db(), 'announcements') ? published_announcements() : [];
+$items = class_announcements();
 student_header('Announcements', 'announcements', lead: 'Official class updates.');
 ?>
 

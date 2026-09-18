@@ -8,7 +8,7 @@ require_once dirname(__DIR__) . '/includes/queries.php';
 
 student_boot();
 
-$items = table_exists(db(), 'events') ? published_events() : [];
+$items = class_events();
 $parts = partition_student_events($items);
 $hero = $parts['next'] ?? ($parts['past'][0] ?? ($parts['undated'][0] ?? null));
 $upcoming = $parts['upcoming'];
@@ -32,7 +32,7 @@ student_header('Events', 'events', lead: 'What the class is doing — upcoming f
 <?php if (!$items): ?>
     <div class="empty-state">
         <h2>Nothing on the calendar yet</h2>
-        <p>Published class events appear here. Nothing is invented.</p>
+        <p>Class events appear here once they are added for the class.</p>
     </div>
 <?php else: ?>
     <?php if ($hero): ?>

@@ -2,21 +2,62 @@
 
 declare(strict_types=1);
 
-function published_events(?int $limit = null): array
+function visible_content_rows(string $table, string $audience, string $orderSql, ?int $limit = null, string $extraSql = '', array $params = []): array
 {
-    $sql = "SELECT * FROM events WHERE published = 1 ORDER BY (event_date IS NULL), event_date ASC, id DESC";
+    $table = preg_replace('/[^a-z0-9_]/', '', $table) ?? '';
+    if ($table === '' || !table_exists(db(), $table) || !column_exists(db(), $table, 'visibility')) {
+        return [];
+    }
+    $sql = 'SELECT * FROM `' . $table . '` WHERE ' . content_audience_sql($audience);
+    if ($extraSql !== '') {
+        $sql .= ' AND ' . $extraSql;
+    }
+    $sql .= ' ' . $orderSql;
     if ($limit) {
-        return db()->query($sql . ' LIMIT ' . (int) $limit)->fetchAll();
+        $sql .= ' LIMIT ' . (int) $limit;
+    }
+    if ($params) {
+        $stmt = db()->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
     }
     return db()->query($sql)->fetchAll();
 }
 
-function find_published_event(int $id): ?array
+function visible_events(string $audience = 'public', ?int $limit = null): array
 {
-    $stmt = db()->prepare('SELECT * FROM events WHERE id = ? AND published = 1 LIMIT 1');
+    return visible_content_rows('events', $audience, 'ORDER BY (event_date IS NULL), event_date ASC, id DESC', $limit);
+}
+
+function published_events(?int $limit = null): array
+{
+    return visible_events('public', $limit);
+}
+
+function class_events(?int $limit = null): array
+{
+    return visible_events('class', $limit);
+}
+
+function find_visible_event(int $id, string $audience = 'public'): ?array
+{
+    if ($id < 1 || !table_exists(db(), 'events') || !column_exists(db(), 'events', 'visibility')) {
+        return null;
+    }
+    $stmt = db()->prepare('SELECT * FROM events WHERE id = ? AND ' . content_audience_sql($audience) . ' LIMIT 1');
     $stmt->execute([$id]);
     $row = $stmt->fetch();
     return $row ?: null;
+}
+
+function find_published_event(int $id): ?array
+{
+    return find_visible_event($id, 'public');
+}
+
+function find_class_event(int $id): ?array
+{
+    return find_visible_event($id, 'class');
 }
 
 function event_timing(array $event): string
@@ -133,37 +174,80 @@ function partition_student_events(array $items): array
     ];
 }
 
+function visible_announcements(string $audience = 'public', ?int $limit = null): array
+{
+    return visible_content_rows('announcements', $audience, 'ORDER BY (announced_on IS NULL), announced_on DESC, id DESC', $limit);
+}
+
 function published_announcements(?int $limit = null): array
 {
-    $sql = "SELECT * FROM announcements WHERE published = 1 ORDER BY (announced_on IS NULL), announced_on DESC, id DESC";
-    if ($limit) {
-        return db()->query($sql . ' LIMIT ' . (int) $limit)->fetchAll();
+    return visible_announcements('public', $limit);
+}
+
+function class_announcements(?int $limit = null): array
+{
+    return visible_announcements('class', $limit);
+}
+
+function visible_gallery(string $audience = 'public', ?string $category = null): array
+{
+    if ($category && $category !== 'all') {
+        return visible_content_rows(
+            'gallery',
+            $audience,
+            'ORDER BY (taken_on IS NULL), taken_on DESC, id DESC',
+            null,
+            'category = ?',
+            [$category]
+        );
     }
-    return db()->query($sql)->fetchAll();
+    return visible_content_rows('gallery', $audience, 'ORDER BY (taken_on IS NULL), taken_on DESC, id DESC');
 }
 
 function published_gallery(?string $category = null): array
 {
-    if ($category && $category !== 'all') {
-        $stmt = db()->prepare('SELECT * FROM gallery WHERE published = 1 AND category = ? ORDER BY (taken_on IS NULL), taken_on DESC, id DESC');
-        $stmt->execute([$category]);
-        return $stmt->fetchAll();
+    return visible_gallery('public', $category);
+}
+
+function class_gallery(?string $category = null): array
+{
+    return visible_gallery('class', $category);
+}
+
+function visible_committee(string $audience = 'public'): array
+{
+    if (!table_exists(db(), 'committee_members')) {
+        return [];
     }
-    return db()->query('SELECT * FROM gallery WHERE published = 1 ORDER BY (taken_on IS NULL), taken_on DESC, id DESC')->fetchAll();
+    if (!column_exists(db(), 'committee_members', 'visibility')) {
+        return $audience === 'public' ? [] : db()->query('SELECT * FROM committee_members ORDER BY display_order ASC, id ASC')->fetchAll();
+    }
+    return visible_content_rows('committee_members', $audience, 'ORDER BY display_order ASC, id ASC');
 }
 
 function committee_list(): array
 {
-    return db()->query('SELECT * FROM committee_members ORDER BY display_order ASC, id ASC')->fetchAll();
+    return visible_committee('public');
+}
+
+function class_committee(): array
+{
+    return visible_committee('class');
+}
+
+function visible_achievements(string $audience = 'public', ?int $limit = null): array
+{
+    return visible_content_rows('achievements', $audience, 'ORDER BY (achieved_on IS NULL), achieved_on DESC, id DESC', $limit);
 }
 
 function published_achievements(?int $limit = null): array
 {
-    $sql = "SELECT * FROM achievements WHERE published = 1 ORDER BY (achieved_on IS NULL), achieved_on DESC, id DESC";
-    if ($limit) {
-        return db()->query($sql . ' LIMIT ' . (int) $limit)->fetchAll();
-    }
-    return db()->query($sql)->fetchAll();
+    return visible_achievements('public', $limit);
+}
+
+function class_achievements(?int $limit = null): array
+{
+    return visible_achievements('class', $limit);
 }
 
 function gallery_categories(): array
@@ -231,50 +315,89 @@ function message_roles(): array
     ];
 }
 
+function visible_milestones(string $audience = 'public'): array
+{
+    return visible_content_rows(
+        'timeline_milestones',
+        $audience,
+        'ORDER BY display_order ASC, (occurred_on IS NULL), occurred_on ASC, id ASC'
+    );
+}
+
 function published_milestones(): array
 {
-    if (!table_exists(db(), 'timeline_milestones')) {
-        return [];
-    }
-    return db()->query(
-        'SELECT * FROM timeline_milestones WHERE published = 1 ORDER BY display_order ASC, (occurred_on IS NULL), occurred_on ASC, id ASC'
-    )->fetchAll();
+    return visible_milestones('public');
+}
+
+function class_milestones(): array
+{
+    return visible_milestones('class');
+}
+
+function visible_memories(string $audience = 'public', ?int $limit = null): array
+{
+    return visible_content_rows('memories', $audience, 'ORDER BY (memory_on IS NULL), memory_on DESC, id DESC', $limit);
 }
 
 function published_memories(?int $limit = null): array
 {
-    if (!table_exists(db(), 'memories')) {
-        return [];
-    }
-    $sql = 'SELECT * FROM memories WHERE published = 1 ORDER BY (memory_on IS NULL), memory_on DESC, id DESC';
-    if ($limit) {
-        return db()->query($sql . ' LIMIT ' . (int) $limit)->fetchAll();
-    }
-    return db()->query($sql)->fetchAll();
+    return visible_memories('public', $limit);
+}
+
+function class_memories(?int $limit = null): array
+{
+    return visible_memories('class', $limit);
+}
+
+function visible_spotlights(string $audience = 'public', ?int $limit = null): array
+{
+    return visible_content_rows('spotlights', $audience, 'ORDER BY (featured_on IS NULL), featured_on DESC, id DESC', $limit);
 }
 
 function published_spotlights(?int $limit = null): array
 {
-    if (!table_exists(db(), 'spotlights')) {
-        return [];
-    }
-    $sql = 'SELECT * FROM spotlights WHERE published = 1 ORDER BY (featured_on IS NULL), featured_on DESC, id DESC';
-    if ($limit) {
-        return db()->query($sql . ' LIMIT ' . (int) $limit)->fetchAll();
-    }
-    return db()->query($sql)->fetchAll();
+    return visible_spotlights('public', $limit);
+}
+
+function class_spotlights(?int $limit = null): array
+{
+    return visible_spotlights('class', $limit);
+}
+
+function visible_class_messages(string $audience = 'public', ?int $limit = null): array
+{
+    return visible_content_rows('class_messages', $audience, 'ORDER BY display_order ASC, id DESC', $limit);
 }
 
 function published_class_messages(?int $limit = null): array
 {
-    if (!table_exists(db(), 'class_messages')) {
-        return [];
-    }
-    $sql = 'SELECT * FROM class_messages WHERE published = 1 ORDER BY display_order ASC, id DESC';
-    if ($limit) {
-        return db()->query($sql . ' LIMIT ' . (int) $limit)->fetchAll();
-    }
-    return db()->query($sql)->fetchAll();
+    return visible_class_messages('public', $limit);
+}
+
+function class_member_messages(?int $limit = null): array
+{
+    return visible_class_messages('class', $limit);
+}
+
+function has_visible_content(string $table, string $audience = 'public'): bool
+{
+    return visible_content_rows($table, $audience, 'ORDER BY id DESC', 1) !== [];
+}
+
+function public_section_is_open(string $id): bool
+{
+    return match ($id) {
+        'events' => has_visible_content('events'),
+        'gallery' => has_visible_content('gallery'),
+        'announcements' => has_visible_content('announcements'),
+        'memories' => has_visible_content('memories') || has_visible_content('class_messages'),
+        'committee' => has_visible_content('committee_members'),
+        'graduation' => setting_bool('graduation_public'),
+        'year' => has_visible_content('achievements')
+            || has_visible_content('events')
+            || has_visible_content('timeline_milestones'),
+        default => true,
+    };
 }
 
 function parse_year_month(?string $value): DateTimeImmutable
@@ -287,9 +410,9 @@ function parse_year_month(?string $value): DateTimeImmutable
     return $dt;
 }
 
-function default_calendar_month(): DateTimeImmutable
+function default_calendar_month(string $audience = 'public'): DateTimeImmutable
 {
-    $next = next_published_event();
+    $next = next_visible_event($audience);
     if ($next && !empty($next['event_date'])) {
         $stamp = substr((string) $next['event_date'], 0, 7);
         $dt = DateTimeImmutable::createFromFormat('!Y-m', $stamp);
@@ -309,15 +432,15 @@ function event_day_number(string $eventDate): int
     return $ts ? (int) date('j', $ts) : 0;
 }
 
-function calendar_month_events(DateTimeImmutable $month, ?string $category = null): array
+function calendar_month_events(DateTimeImmutable $month, ?string $category = null, string $audience = 'public'): array
 {
     $empty = ['rows' => [], 'by_day' => []];
-    if (!table_exists(db(), 'events')) {
+    if (!table_exists(db(), 'events') || !column_exists(db(), 'events', 'visibility')) {
         return $empty;
     }
     $start = $month->format('Y-m-01');
     $end = $month->modify('first day of next month')->format('Y-m-d');
-    $sql = 'SELECT * FROM events WHERE published = 1 AND event_date IS NOT NULL AND event_date >= ? AND event_date < ?';
+    $sql = 'SELECT * FROM events WHERE ' . content_audience_sql($audience) . ' AND event_date IS NOT NULL AND event_date >= ? AND event_date < ?';
     $params = [$start, $end];
     if ($category && $category !== 'all' && array_key_exists($category, event_categories()) && column_exists(db(), 'events', 'category')) {
         $sql .= ' AND category = ?';
@@ -338,18 +461,29 @@ function calendar_month_events(DateTimeImmutable $month, ?string $category = nul
     return ['rows' => $rows, 'by_day' => $byDay];
 }
 
-function published_events_by_category(string $category, ?int $limit = null): array
+function visible_events_by_category(string $category, string $audience = 'public', ?int $limit = null): array
 {
     if (!table_exists(db(), 'events') || !column_exists(db(), 'events', 'category') || !array_key_exists($category, event_categories())) {
         return [];
     }
-    $sql = 'SELECT * FROM events WHERE published = 1 AND category = ? ORDER BY (event_date IS NULL), event_date ASC, id DESC';
-    if ($limit) {
-        $sql .= ' LIMIT ' . (int) $limit;
-    }
-    $stmt = db()->prepare($sql);
-    $stmt->execute([$category]);
-    return $stmt->fetchAll();
+    return visible_content_rows(
+        'events',
+        $audience,
+        'ORDER BY (event_date IS NULL), event_date ASC, id DESC',
+        $limit,
+        'category = ?',
+        [$category]
+    );
+}
+
+function published_events_by_category(string $category, ?int $limit = null): array
+{
+    return visible_events_by_category($category, 'public', $limit);
+}
+
+function class_events_by_category(string $category, ?int $limit = null): array
+{
+    return visible_events_by_category($category, 'class', $limit);
 }
 
 function fetch_students(array $filters = []): array
@@ -486,37 +620,48 @@ function dashboard_counts(): array
     }
 }
 
-function next_published_event(): ?array
+function next_visible_event(string $audience = 'public'): ?array
 {
-    if (!table_exists(db(), 'events')) {
+    if (!table_exists(db(), 'events') || !column_exists(db(), 'events', 'visibility')) {
         return null;
     }
+    $clause = content_audience_sql($audience);
     $row = db()->query(
         "SELECT * FROM events
-         WHERE published = 1 AND event_date IS NOT NULL AND event_date >= CURDATE()
+         WHERE $clause AND event_date IS NOT NULL AND event_date >= CURDATE()
          ORDER BY event_date ASC, id ASC LIMIT 1"
     )->fetch();
     if ($row) {
         return $row;
     }
     $row = db()->query(
-        "SELECT * FROM events WHERE published = 1 ORDER BY (event_date IS NULL), event_date DESC, id DESC LIMIT 1"
+        "SELECT * FROM events WHERE $clause ORDER BY (event_date IS NULL), event_date DESC, id DESC LIMIT 1"
     )->fetch();
     return $row ?: null;
+}
+
+function next_published_event(): ?array
+{
+    return next_visible_event('public');
+}
+
+function next_class_event(): ?array
+{
+    return next_visible_event('class');
 }
 
 function unpublished_counts(): array
 {
     $counts = ['events' => 0, 'announcements' => 0, 'gallery' => 0, 'uniforms_pending' => 0, 'profile_requests' => 0, 'payment_requests' => 0, 'question_pending' => 0, 'response_pending' => 0];
     try {
-        if (table_exists(db(), 'events')) {
-            $counts['events'] = (int) db()->query('SELECT COUNT(*) FROM events WHERE published = 0')->fetchColumn();
+        if (table_exists(db(), 'events') && column_exists(db(), 'events', 'visibility')) {
+            $counts['events'] = (int) db()->query("SELECT COUNT(*) FROM events WHERE visibility = 'draft'")->fetchColumn();
         }
-        if (table_exists(db(), 'announcements')) {
-            $counts['announcements'] = (int) db()->query('SELECT COUNT(*) FROM announcements WHERE published = 0')->fetchColumn();
+        if (table_exists(db(), 'announcements') && column_exists(db(), 'announcements', 'visibility')) {
+            $counts['announcements'] = (int) db()->query("SELECT COUNT(*) FROM announcements WHERE visibility = 'draft'")->fetchColumn();
         }
-        if (table_exists(db(), 'gallery')) {
-            $counts['gallery'] = (int) db()->query('SELECT COUNT(*) FROM gallery WHERE published = 0')->fetchColumn();
+        if (table_exists(db(), 'gallery') && column_exists(db(), 'gallery', 'visibility')) {
+            $counts['gallery'] = (int) db()->query("SELECT COUNT(*) FROM gallery WHERE visibility = 'draft'")->fetchColumn();
         }
         if (table_exists(db(), 'uniforms') && column_exists(db(), 'uniforms', 'status')) {
             $counts['uniforms_pending'] = (int) db()->query("SELECT COUNT(*) FROM uniforms WHERE status = 'pending'")->fetchColumn();
@@ -539,7 +684,7 @@ function unpublished_counts(): array
     return $counts;
 }
 
-function this_year_timeline(): array
+function this_year_timeline(string $audience = 'public'): array
 {
     $buckets = [];
     $add = static function (string $date, string $title, string $href) use (&$buckets): void {
@@ -563,20 +708,19 @@ function this_year_timeline(): array
         ];
     };
 
-    if (table_exists(db(), 'events')) {
-        foreach (published_events() as $event) {
-            if (!empty($event['event_date'])) {
-                $add((string) $event['event_date'], (string) $event['title'], 'event.php?id=' . (int) $event['id']);
-            }
+    foreach (visible_events($audience) as $event) {
+        if (!empty($event['event_date'])) {
+            $href = $audience === 'class' ? 'student/event.php?id=' . (int) $event['id'] : 'event.php?id=' . (int) $event['id'];
+            $add((string) $event['event_date'], (string) $event['title'], $href);
         }
     }
-    foreach (published_milestones() as $milestone) {
+    foreach (visible_milestones($audience) as $milestone) {
         if (!empty($milestone['occurred_on'])) {
             $add((string) $milestone['occurred_on'], (string) $milestone['title'], 'journey.php');
         }
     }
     $gradDate = setting('graduation_date');
-    if ($gradDate) {
+    if ($gradDate && ($audience === 'class' || setting_bool('graduation_public'))) {
         $add($gradDate, setting('graduation_title', 'Graduation'), 'graduation.php');
     }
     ksort($buckets);

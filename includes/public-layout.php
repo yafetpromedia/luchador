@@ -2,17 +2,26 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/queries.php';
+
 function public_nav_items(bool $onHome = false): array
 {
     $base = $onHome ? '' : 'index.php';
-    return [
+    $items = [
         'home' => ['label' => 'Home', 'href' => $base . '#home'],
-        'events' => ['label' => 'Events', 'href' => $base . '#events'],
-        'gallery' => ['label' => 'Gallery', 'href' => $base . '#gallery'],
-        'journey' => ['label' => 'Journey', 'href' => $base . '#journey'],
-        'graduation' => ['label' => 'Graduation', 'href' => $base . '#graduation'],
-        'contact' => ['label' => 'Contact', 'href' => $base . '#contact'],
     ];
+    if (function_exists('has_visible_content') && has_visible_content('events')) {
+        $items['events'] = ['label' => 'Events', 'href' => $base . '#events'];
+    }
+    if (function_exists('has_visible_content') && has_visible_content('gallery')) {
+        $items['gallery'] = ['label' => 'Gallery', 'href' => $base . '#gallery'];
+    }
+    $items['journey'] = ['label' => 'About', 'href' => $base . '#journey'];
+    if (setting_bool('graduation_public')) {
+        $items['graduation'] = ['label' => 'Graduation', 'href' => $base . '#graduation'];
+    }
+    $items['contact'] = ['label' => 'Contact', 'href' => $base . '#contact'];
+    return $items;
 }
 
 function public_header(string $title, string $active = 'home', string $description = '', bool $onePage = false): void
@@ -36,7 +45,7 @@ function public_header(string $title, string $active = 'home', string $descripti
     <?php endif; ?>
     <link rel="icon" href="<?= e(url('assets/images/favicon.svg')) ?>" type="image/svg+xml">
     <?php site_font_links(); ?>
-    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=48">
+    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=49">
 </head>
 <body class="<?= $onePage ? 'onepage' : '' ?>">
     <a class="skip-link" href="#main">Skip to content</a>
@@ -81,6 +90,7 @@ function public_header(string $title, string $active = 'home', string $descripti
 function public_footer(bool $onePage = false): void
 {
     $base = $onePage ? '' : 'index.php';
+    $showLeadership = function_exists('committee_list') && committee_list() !== [];
     ?>
     </main>
     <footer class="site-footer">
@@ -88,8 +98,10 @@ function public_footer(bool $onePage = false): void
             <p><?= e(class_name()) ?> · Grade <?= e(class_grade()) ?> · <?= e(school_name()) ?></p>
             <p>
                 <a href="<?= e($onePage ? '#contact' : url($base . '#contact')) ?>">Contact</a>
+                <?php if ($showLeadership): ?>
                 ·
                 <a href="<?= e($onePage ? '#committee' : url($base . '#committee')) ?>">Leadership</a>
+                <?php endif; ?>
                 ·
                 <a href="<?= e(url('login.php')) ?>">Sign in</a>
             </p>

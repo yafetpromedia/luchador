@@ -266,6 +266,7 @@ function setting_defaults(): array
         'graduation_title' => 'Graduation',
         'graduation_message' => '',
         'countdown_enabled' => '0',
+        'graduation_public' => '0',
         'hero_tagline' => 'One class. One journey. One final chapter.',
         'hero_message' => 'The senior year of Luchador at Bright Side International School — a shared record of the people, work, and moments that close this chapter.',
         'about_who' => 'Luchador is the Grade 12 class of Bright Side International School. This portal is the digital home of the senior class: a public record of identity, events, and leadership, and a working space for class organization.',
@@ -322,8 +323,11 @@ function status_label(string $status): string
         'ongoing' => 'Ongoing',
         'completed' => 'Completed',
         'cancelled' => 'Cancelled',
-        'published' => 'Published',
+        'published' => 'Public website',
         'draft' => 'Draft',
+        'private' => 'Class only',
+        'public' => 'Public website',
+        'archived' => 'Archived',
         'unpaid' => 'Unpaid',
         'partial' => 'Partial',
         'paid' => 'Paid',
@@ -425,6 +429,101 @@ function normalize_class_section(string $raw): string
 function is_class_section(string $section): bool
 {
     return in_array($section, class_sections(), true);
+}
+
+function content_visibilities(): array
+{
+    return [
+        'draft' => 'Draft — admin only',
+        'private' => 'Class only',
+        'public' => 'Public website',
+        'archived' => 'Archived',
+    ];
+}
+
+function normalize_content_visibility(string $raw, string $fallback = 'private'): string
+{
+    $raw = strtolower(trim($raw));
+    if (isset(content_visibilities()[$raw])) {
+        return $raw;
+    }
+    return isset(content_visibilities()[$fallback]) ? $fallback : 'private';
+}
+
+function content_visibility_of(array $row): string
+{
+    $value = strtolower(trim((string) ($row['visibility'] ?? '')));
+    if (isset(content_visibilities()[$value])) {
+        return $value;
+    }
+    return !empty($row['published']) ? 'public' : 'private';
+}
+
+function posted_visibility(?array $existing = null): string
+{
+    if (posted('visibility') !== '') {
+        return normalize_content_visibility(posted('visibility'));
+    }
+    if (posted('published') === '1') {
+        return 'public';
+    }
+    if ($existing) {
+        return content_visibility_of($existing);
+    }
+    return 'private';
+}
+
+function published_flag_for_visibility(string $visibility): int
+{
+    return $visibility === 'public' ? 1 : 0;
+}
+
+function content_audience_sql(string $audience, string $alias = ''): string
+{
+    $prefix = $alias !== '' ? $alias . '.' : '';
+    $visibility = $prefix . 'visibility';
+    if ($audience === 'class') {
+        return $visibility . " IN ('private','public')";
+    }
+    return $visibility . " = 'public'";
+}
+
+function content_is_class_visible(array $row): bool
+{
+    return in_array(content_visibility_of($row), ['private', 'public'], true);
+}
+
+function content_is_public(array $row): bool
+{
+    return content_visibility_of($row) === 'public';
+}
+
+function app_env(): string
+{
+    $env = '';
+    if (function_exists('env')) {
+        $env = (string) env('APP_ENV', '');
+    }
+    if ($env === '') {
+        $from = getenv('APP_ENV');
+        $env = is_string($from) ? $from : '';
+    }
+    if ($env === '') {
+        return 'local';
+    }
+    return strtolower($env);
+}
+
+function app_is_production(): bool
+{
+    if (app_env() === 'production') {
+        return true;
+    }
+    $host = strtolower(preg_replace('/:\d+$/', '', (string) ($_SERVER['HTTP_HOST'] ?? '')) ?? '');
+    if ($host === '' || $host === 'localhost' || $host === '127.0.0.1' || str_ends_with($host, '.local')) {
+        return false;
+    }
+    return true;
 }
 
 function greeting(): string
@@ -653,4 +752,12 @@ function redirect_class_section(string $id, array $query = []): void
         $path .= '?' . http_build_query($query);
     }
     redirect($path . '#' . $id);
+}
+
+function redirect_public_section(string $id, array $query = []): void
+{
+    if (function_exists('public_section_is_open') && !public_section_is_open($id)) {
+        redirect('index.php');
+    }
+    redirect_class_section($id, $query);
 }

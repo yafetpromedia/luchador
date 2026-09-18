@@ -855,10 +855,10 @@ body:not(.admin-body) .cover .btn-ghost:hover {
     border: 1px solid var(--color-border);
 }
 
-.badge-upcoming, .badge-published, .badge-ready { color: var(--color-info); background: var(--color-info-bg); border-color: transparent; }
-.badge-ongoing, .badge-pending, .badge-partial { color: var(--color-warning); background: var(--color-warning-bg); border-color: transparent; }
+.badge-upcoming, .badge-published, .badge-ready, .badge-public { color: var(--color-info); background: var(--color-info-bg); border-color: transparent; }
+.badge-ongoing, .badge-pending, .badge-partial, .badge-private { color: var(--color-warning); background: var(--color-warning-bg); border-color: transparent; }
 .badge-completed, .badge-collected, .badge-paid { color: var(--color-success); background: var(--color-success-bg); border-color: transparent; }
-.badge-cancelled, .badge-missing, .badge-unpaid { color: var(--color-danger); background: var(--color-danger-bg); border-color: transparent; }
+.badge-cancelled, .badge-missing, .badge-unpaid, .badge-archived { color: var(--color-danger); background: var(--color-danger-bg); border-color: transparent; }
 .badge-ordered { color: var(--color-text-secondary); }
 
 .media-cover {

@@ -12,26 +12,36 @@ if (is_post()) {
     require_manage_on_post('graduation.manage');
     try {
         $oldDate = setting('graduation_date');
+        $wasPublic = setting_bool('graduation_public');
+        $nowPublic = posted('graduation_public') === '1';
         save_settings([
             'graduation_date' => posted('graduation_date'),
             'graduation_title' => posted('graduation_title') ?: 'Graduation',
             'graduation_message' => posted('graduation_message'),
             'class_message' => posted('class_message'),
             'countdown_enabled' => posted('countdown_enabled') === '1' ? '1' : '0',
+            'graduation_public' => $nowPublic ? '1' : '0',
         ]);
         log_audit('settings.update', 'graduation', null, 'Graduation settings');
         $newDate = posted('graduation_date');
+        $payload = [
+            'type' => 'graduation.update',
+            'title' => 'Graduation date set',
+            'body' => format_date($newDate) ?: $newDate,
+            'icon' => 'graduation',
+            'target_type' => 'graduation',
+            'target_id' => 1,
+            'url_student' => 'student/graduation.php',
+            'url_public' => 'index.php#graduation',
+        ];
         if ($newDate !== '' && $newDate !== $oldDate) {
-            notify_class([
-                'type' => 'graduation.update',
-                'title' => 'Graduation date set',
-                'body' => format_date($newDate) ?: $newDate,
-                'icon' => 'graduation',
-                'target_type' => 'graduation',
-                'target_id' => 1,
-                'url_student' => 'student/graduation.php',
-                'url_public' => 'index.php#graduation',
-            ]);
+            if ($nowPublic) {
+                notify_class($payload);
+            } else {
+                notify_students($payload);
+            }
+        } elseif ($nowPublic && !$wasPublic) {
+            notify_public($payload);
         }
         flash_set('success', 'Graduation settings saved.');
     } catch (Throwable $e) {
@@ -42,7 +52,7 @@ if (is_post()) {
 }
 
 admin_header('Graduation', 'graduation');
-admin_page_head('Leave the date empty until it is confirmed. Do not invent a date.');
+admin_page_head('Graduation stays inside the class portal until you choose to show it on the public website. Leave the date empty until it is confirmed.');
 $gradDate = setting('graduation_date');
 $gradTitle = setting('graduation_title', 'Graduation');
 ?>
@@ -53,7 +63,7 @@ $gradTitle = setting('graduation_title', 'Graduation');
         <?php render_countdown($gradDate); ?>
     <?php else: ?>
         <strong>Date not set yet</strong>
-        <p>The public countdown stays off until a real date is saved.</p>
+        <p>The class countdown stays off until a real date is saved. It does not appear on the public website unless you publish it.</p>
     <?php endif; ?>
 </div>
 
@@ -69,6 +79,9 @@ $gradTitle = setting('graduation_title', 'Graduation');
             <div class="form-group full"><label>Class message</label><textarea name="class_message"><?= e(setting('class_message')) ?></textarea></div>
             <div class="form-group full">
                 <label class="check"><input type="checkbox" name="countdown_enabled" value="1" <?= setting_bool('countdown_enabled') ? 'checked' : '' ?>> Enable countdown (requires a date)</label>
+            </div>
+            <div class="form-group full">
+                <label class="check"><input type="checkbox" name="graduation_public" value="1" <?= setting_bool('graduation_public') ? 'checked' : '' ?>> Show graduation on the public website</label>
             </div>
         </div>
         <div class="form-actions" style="margin-top:1rem"><button class="btn" type="submit">Save graduation settings</button></div>

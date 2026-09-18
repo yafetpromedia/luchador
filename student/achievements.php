@@ -8,7 +8,7 @@ require_once dirname(__DIR__) . '/includes/queries.php';
 
 student_boot();
 
-$items = table_exists(db(), 'achievements') ? published_achievements() : [];
+$items = class_achievements();
 student_header('Achievements', 'achievements', lead: 'What the class has recorded this year.');
 ?>
 

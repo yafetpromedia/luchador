@@ -16,10 +16,10 @@ admin_header('Overview', 'index');
 
 $work = [];
 if (can_any(['events.view', 'events.edit', 'events.create'])) {
-    $work[] = ['n' => (int) $drafts['events'], 'label' => 'Events needing attention', 'href' => 'admin/events.php'];
+    $work[] = ['n' => (int) $drafts['events'], 'label' => 'Draft events', 'href' => 'admin/events.php'];
 }
 if (can_any(['announcements.view', 'announcements.edit', 'announcements.create'])) {
-    $work[] = ['n' => (int) $drafts['announcements'], 'label' => 'Unpublished announcements', 'href' => 'admin/announcements.php'];
+    $work[] = ['n' => (int) $drafts['announcements'], 'label' => 'Draft announcements', 'href' => 'admin/announcements.php'];
 }
 if (can_any(['gallery.view', 'gallery.upload'])) {
     $work[] = ['n' => (int) $drafts['gallery'], 'label' => 'Gallery uploads in draft', 'href' => 'admin/gallery.php'];

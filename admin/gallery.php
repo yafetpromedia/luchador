@@ -24,12 +24,15 @@ if (is_post()) {
         } elseif (posted('action') === 'toggle') {
             require_permission('gallery.edit');
             $toggleId = request_int('id');
-            $stmt = db()->prepare('SELECT published, title FROM gallery WHERE id = ?');
+            $stmt = db()->prepare('SELECT published, visibility, title FROM gallery WHERE id = ?');
             $stmt->execute([$toggleId]);
             $row = $stmt->fetch() ?: [];
-            db()->prepare('UPDATE gallery SET published = IF(published = 1, 0, 1) WHERE id = ?')->execute([$toggleId]);
+            $was = content_visibility_of($row);
+            $next = $was === 'public' ? 'private' : 'public';
+            db()->prepare('UPDATE gallery SET visibility = ?, published = ? WHERE id = ?')
+                ->execute([$next, published_flag_for_visibility($next), $toggleId]);
             log_audit('gallery.toggle', 'gallery', $toggleId);
-            notify_if_published((int) ($row['published'] ?? 0) === 1, (int) ($row['published'] ?? 0) !== 1, [
+            notify_if_visibility($was, $next, [
                 'type' => 'gallery.published',
                 'title' => 'New class photo',
                 'body' => (string) ($row['title'] ?? 'Gallery'),
@@ -39,7 +42,7 @@ if (is_post()) {
                 'url_student' => 'student/gallery.php',
                 'url_public' => 'index.php#gallery',
             ]);
-            flash_set('success', 'Visibility updated.');
+            flash_set('success', $next === 'public' ? 'Photo is now on the public website.' : 'Photo is class-only.');
         } else {
             require_permission('gallery.upload');
             $title = posted('title');
@@ -57,11 +60,13 @@ if (is_post()) {
             if (!array_key_exists($category, gallery_categories()) || $category === 'all') {
                 $category = 'class';
             }
-            db()->prepare('INSERT INTO gallery (title, caption, image_path, category, taken_on, published) VALUES (?,?,?,?,?,?)')
-                ->execute([$title, posted('caption'), $upload['path'], $category, posted('taken_on') ?: null, posted('published') === '1' ? 1 : 0]);
+            $visibility = posted_visibility();
+            $published = published_flag_for_visibility($visibility);
+            db()->prepare('INSERT INTO gallery (title, caption, image_path, category, taken_on, published, visibility) VALUES (?,?,?,?,?,?,?)')
+                ->execute([$title, posted('caption'), $upload['path'], $category, posted('taken_on') ?: null, $published, $visibility]);
             $newId = (int) db()->lastInsertId();
             log_audit('gallery.upload', 'gallery', $newId, $title);
-            notify_if_published(false, posted('published') === '1', [
+            notify_if_visibility('draft', $visibility, [
                 'type' => 'gallery.published',
                 'title' => 'New class photo',
                 'body' => $title,
@@ -84,7 +89,7 @@ if (is_post()) {
 
 $rows = db()->query('SELECT * FROM gallery ORDER BY id DESC')->fetchAll();
 admin_header('Gallery', 'gallery');
-admin_page_head('Upload class photographs. Unpublished images stay off the public gallery.');
+admin_page_head('Photos stay class-only until you set Public website.');
 ?>
 
 <?php if (can('gallery.upload')): ?>
@@ -105,7 +110,7 @@ admin_page_head('Upload class photographs. Unpublished images stay off the publi
             <div class="form-group full"><label>Caption</label><input name="caption"></div>
             <div class="form-group"><label>Date</label><input type="date" name="taken_on"></div>
             <div class="form-group"><label>Image</label><input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif" required></div>
-            <div class="form-group full"><label class="check"><input type="checkbox" name="published" value="1" checked> Published</label></div>
+            <?= visibility_select() ?>
         </div>
         <div class="form-actions" style="margin-top:1rem"><button class="btn" type="submit">Upload image</button></div>
     </form>
@@ -113,7 +118,7 @@ admin_page_head('Upload class photographs. Unpublished images stay off the publi
 <?php endif; ?>
 
 <?php if (!$rows): ?>
-    <?php admin_empty('No images yet.', 'Upload a class photograph above. Unpublished images stay off the public gallery.'); ?>
+    <?php admin_empty('No images yet.', 'Upload a class photograph above. New photos stay class-only until you choose Public website.'); ?>
 <?php else: ?>
 <div class="admin-mosaic">
     <?php foreach ($rows as $row): ?>
@@ -126,11 +131,11 @@ admin_page_head('Upload class photographs. Unpublished images stay off the publi
                     <strong><?= e($row['title']) ?></strong>
                     <p class="muted"><?= e(status_label((string) $row['category'])) ?><?= !empty($row['taken_on']) ? ' · ' . e(format_date($row['taken_on'])) : '' ?></p>
                 </div>
-                <?= admin_published_badge($row['published'] ?? 0) ?>
+                <?= admin_visibility_badge($row) ?>
             </div>
             <div class="row-actions">
                 <?php if (can('gallery.edit')): ?>
-                <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="<?= (int) $row['id'] ?>"><button class="btn btn-sm btn-ghost" type="submit"><?= !empty($row['published']) ? 'Unpublish' : 'Publish' ?></button></form>
+                <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="<?= (int) $row['id'] ?>"><button class="btn btn-sm btn-ghost" type="submit"><?= content_visibility_of($row) === 'public' ? 'Make class only' : 'Publish to website' ?></button></form>
                 <?php endif; ?>
                 <?php if (can('gallery.delete')): ?>
                 <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int) $row['id'] ?>"><button class="btn btn-sm btn-danger" data-confirm="This action cannot be undone." data-confirm-title="Delete image?">Delete</button></form>

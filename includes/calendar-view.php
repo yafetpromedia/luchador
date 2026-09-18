@@ -34,7 +34,7 @@ function render_class_calendar(array $opts): void
     $today = $isThisMonth ? (int) date('j') : 0;
     $dayEvents = $day > 0 ? ($cal['by_day'][$day] ?? []) : [];
     $monthRows = $cal['rows'] ?? [];
-    $next = next_published_event();
+    $next = $opts['next'] ?? next_published_event();
     $nextStamp = $next && !empty($next['event_date']) ? substr((string) $next['event_date'], 0, 7) : '';
     ?>
     <div class="class-cal" data-calendar data-cal-month="<?= e($month->format('F')) ?>">

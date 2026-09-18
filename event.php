@@ -13,7 +13,7 @@ if (!$event) {
     public_header(site_title('Event'), 'events');
     page_intro('Events', 'Event not found');
     echo '<section class="section" style="padding-top:0"><div class="container">';
-    empty_state('This event is unavailable', 'It may be unpublished, or the link may be incorrect.');
+    empty_state('This event is unavailable', 'The link may be incorrect, or this event is not on the public site.');
     echo '</div></section>';
     public_footer();
     exit;

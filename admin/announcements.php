@@ -43,19 +43,21 @@ if (is_post()) {
             if ($title === '') {
                 throw new InvalidArgumentException('Title is required.');
             }
-            $params = [$title, posted('description'), posted('announced_on') ?: null, $image, posted('published') === '1' ? 1 : 0];
+            $visibility = posted_visibility($edit);
+            $published = published_flag_for_visibility($visibility);
+            $params = [$title, posted('description'), posted('announced_on') ?: null, $image, $published, $visibility];
             if ($id) {
                 $params[] = $id;
-                db()->prepare('UPDATE announcements SET title=?, description=?, announced_on=?, image=?, published=? WHERE id=?')->execute($params);
+                db()->prepare('UPDATE announcements SET title=?, description=?, announced_on=?, image=?, published=?, visibility=? WHERE id=?')->execute($params);
                 log_audit('announcement.save', 'announcement', $id, $title);
                 flash_set('success', 'Announcement updated.');
             } else {
-                db()->prepare('INSERT INTO announcements (title, description, announced_on, image, published) VALUES (?,?,?,?,?)')->execute($params);
+                db()->prepare('INSERT INTO announcements (title, description, announced_on, image, published, visibility) VALUES (?,?,?,?,?,?)')->execute($params);
                 $id = (int) db()->lastInsertId();
                 log_audit('announcement.save', 'announcement', $id, $title);
                 flash_set('success', 'Announcement created.');
             }
-            notify_if_published((int) ($edit['published'] ?? 0) === 1, posted('published') === '1', [
+            notify_if_visibility($edit ? content_visibility_of($edit) : 'draft', $visibility, [
                 'type' => 'announcement.published',
                 'title' => 'New announcement',
                 'body' => $title,
@@ -81,7 +83,7 @@ if ($edit && !can('announcements.edit')) {
 }
 $showForm = ($edit && can('announcements.edit')) || (!$edit && can('announcements.create'));
 admin_header($edit ? 'Edit announcement' : 'Announcements', 'announcements');
-admin_page_head('Publish class notices. Unpublished announcements stay off the public site.');
+admin_page_head('Class notices stay private until you set Public website.');
 ?>
 
 <?php if ($showForm): ?>
@@ -95,7 +97,7 @@ admin_page_head('Publish class notices. Unpublished announcements stay off the p
             <div class="form-group full"><label>Description</label><textarea name="description"><?= e($edit['description'] ?? '') ?></textarea></div>
             <div class="form-group"><label>Date</label><input type="date" name="announced_on" value="<?= e($edit['announced_on'] ?? '') ?>"></div>
             <div class="form-group"><label>Image</label><input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif"></div>
-            <div class="form-group full"><label class="check"><input type="checkbox" name="published" value="1" <?= !empty($edit['published']) ? 'checked' : '' ?>> Published</label></div>
+            <?= visibility_select($edit) ?>
         </div>
         <div class="form-actions" style="margin-top:1rem">
             <button class="btn" type="submit">Save announcement</button>
@@ -110,13 +112,13 @@ admin_page_head('Publish class notices. Unpublished announcements stay off the p
 <?php else: ?>
 <div class="table-wrap">
 <table>
-    <thead><tr><th>Title</th><th>Date</th><th>Published</th><th></th></tr></thead>
+    <thead><tr><th>Title</th><th>Date</th><th>Visibility</th><th></th></tr></thead>
     <tbody>
     <?php foreach ($rows as $row): ?>
         <tr>
             <td><?= admin_title_cell((string) $row['title'], $row['image'] ?? null) ?></td>
             <td><?= e(format_date($row['announced_on'])) ?></td>
-            <td><?= admin_published_badge($row['published'] ?? 0) ?></td>
+            <td><?= admin_visibility_badge($row) ?></td>
             <td class="row-actions">
                 <a class="btn btn-sm btn-ghost" href="?edit=<?= (int) $row['id'] ?>">Edit</a>
                 <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int) $row['id'] ?>"><button class="btn btn-sm btn-danger" data-confirm="This action cannot be undone." data-confirm-title="Delete announcement?">Delete</button></form>

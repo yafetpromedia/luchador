@@ -48,6 +48,8 @@ if (is_post()) {
             if (!array_key_exists($category, spotlight_categories())) {
                 $category = 'student_of_month';
             }
+            $visibility = posted_visibility($edit);
+            $published = published_flag_for_visibility($visibility);
             $params = [
                 $name,
                 $category,
@@ -55,15 +57,16 @@ if (is_post()) {
                 posted('description'),
                 $photo,
                 posted('featured_on') ?: null,
-                posted('published') === '1' ? 1 : 0,
+                $published,
+                $visibility,
             ];
             if ($id) {
                 $params[] = $id;
-                db()->prepare('UPDATE spotlights SET student_name=?, category=?, title=?, description=?, photo=?, featured_on=?, published=? WHERE id=?')->execute($params);
+                db()->prepare('UPDATE spotlights SET student_name=?, category=?, title=?, description=?, photo=?, featured_on=?, published=?, visibility=? WHERE id=?')->execute($params);
                 log_audit('spotlight.save', 'spotlight', $id, $name);
                 flash_set('success', 'Spotlight updated.');
             } else {
-                db()->prepare('INSERT INTO spotlights (student_name, category, title, description, photo, featured_on, published) VALUES (?,?,?,?,?,?,?)')->execute($params);
+                db()->prepare('INSERT INTO spotlights (student_name, category, title, description, photo, featured_on, published, visibility) VALUES (?,?,?,?,?,?,?,?)')->execute($params);
                 log_audit('spotlight.save', 'spotlight', (int) db()->lastInsertId(), $name);
                 flash_set('success', 'Spotlight created.');
             }
@@ -102,7 +105,7 @@ admin_page_head('Publish recognition by hand. This is not an automatic ranking a
             <div class="form-group full"><label>Note</label><textarea name="description"><?= e($edit['description'] ?? '') ?></textarea></div>
             <div class="form-group"><label>Featured on</label><input type="date" name="featured_on" value="<?= e($edit['featured_on'] ?? '') ?>"></div>
             <div class="form-group"><label>Photo</label><input type="file" name="photo" accept="image/jpeg,image/png,image/webp,image/gif"></div>
-            <div class="form-group full"><label class="check"><input type="checkbox" name="published" value="1" <?= !empty($edit['published']) ? 'checked' : '' ?>> Published</label></div>
+            <?= visibility_select($edit) ?>
         </div>
         <div class="form-actions" style="margin-top:1rem">
             <button class="btn" type="submit">Save spotlight</button>
@@ -125,7 +128,7 @@ admin_page_head('Publish recognition by hand. This is not an automatic ranking a
             <?php endif; ?>
             <h3><?= e($row['student_name']) ?></h3>
             <p class="muted"><?= e(status_label((string) $row['category'])) ?><?= !empty($row['title']) ? ' · ' . e($row['title']) : '' ?></p>
-            <?= admin_published_badge($row['published'] ?? 0) ?>
+            <?= admin_visibility_badge($row) ?>
             <?php if (can('spotlights.manage')): ?>
             <div class="row-actions" style="margin-top:0.75rem">
                 <a class="btn btn-sm btn-ghost" href="?edit=<?= (int) $row['id'] ?>">Edit</a>

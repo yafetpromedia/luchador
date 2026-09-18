@@ -22,7 +22,13 @@ $members = table_exists(db(), 'committee_members') ? committee_list() : [];
 $heroImage = setting('hero_image');
 $heroBg = $heroImage ?: (($photos[0]['image_path'] ?? '') ?: '');
 $gradDate = setting('graduation_date');
-$countdown = setting_bool('countdown_enabled') && $gradDate;
+$showEvents = public_section_is_open('events');
+$showAnnouncements = $announcements !== [];
+$showGallery = $photos !== [];
+$showMemories = $memories || $messages;
+$showGraduation = setting_bool('graduation_public');
+$showCommittee = $members !== [];
+$countdown = $showGraduation && setting_bool('countdown_enabled') && $gradDate;
 $loginHref = is_logged_in() ? post_login_path(current_user()) : 'login.php';
 $loginLabel = is_logged_in() ? (is_student() ? 'Class home' : 'Dashboard') : 'Sign in';
 
@@ -56,8 +62,10 @@ public_header(site_title(), 'home', setting('hero_message'), true);
             <h1>We’re Grade <?= e(class_grade()) ?>.</h1>
             <p class="cover-lede">One class. One year. Still being written.</p>
             <p class="hero-actions">
-                <a class="btn" href="#events">See events</a>
-                <a class="btn btn-ghost" href="#journey">Our story</a>
+                <?php if ($showEvents): ?>
+                    <a class="btn" href="#events">See events</a>
+                <?php endif; ?>
+                <a class="btn<?= $showEvents ? ' btn-ghost' : '' ?>" href="#journey">Our story</a>
                 <a class="btn btn-ghost" href="<?= e(url($loginHref)) ?>"><?= e($loginLabel) ?></a>
             </p>
         </div>
@@ -127,6 +135,7 @@ public_header(site_title(), 'home', setting('hero_message'), true);
 </section>
 <?php endif; ?>
 
+<?php if ($showEvents): ?>
 <section class="section" id="events">
     <div class="container">
         <p class="eyebrow">Events</p>
@@ -165,85 +174,80 @@ public_header(site_title(), 'home', setting('hero_message'), true);
         </div>
     </div>
 </section>
+<?php endif; ?>
 
-<section class="section<?= $announcements ? '' : ' is-compact' ?>" id="announcements">
-    <div class="container<?= $announcements ? '' : ' section-row' ?>">
+<?php if ($showAnnouncements): ?>
+<section class="section" id="announcements">
+    <div class="container">
         <div>
             <p class="eyebrow">Updates</p>
             <h2>Announcements</h2>
         </div>
-        <?php if (!$announcements): ?>
-            <p class="muted">No published announcements yet.</p>
-        <?php else: ?>
-            <ol class="editorial-list editorial-list-full">
-                <?php foreach ($announcements as $i => $item): ?>
-                    <li>
-                        <span class="editorial-index"><?= str_pad((string) ($i + 1), 2, '0', STR_PAD_LEFT) ?></span>
-                        <div>
-                            <strong><?= e($item['title']) ?></strong>
-                            <p class="muted"><?= e(format_date($item['announced_on']) ?: format_relative($item['created_at'] ?? null)) ?></p>
-                            <?php if (!empty($item['description'])): ?>
-                                <p><?= nl2br(e((string) $item['description'])) ?></p>
-                            <?php endif; ?>
-                        </div>
-                    </li>
-                <?php endforeach; ?>
-            </ol>
-        <?php endif; ?>
+        <ol class="editorial-list editorial-list-full">
+            <?php foreach ($announcements as $i => $item): ?>
+                <li>
+                    <span class="editorial-index"><?= str_pad((string) ($i + 1), 2, '0', STR_PAD_LEFT) ?></span>
+                    <div>
+                        <strong><?= e($item['title']) ?></strong>
+                        <p class="muted"><?= e(format_date($item['announced_on']) ?: format_relative($item['created_at'] ?? null)) ?></p>
+                        <?php if (!empty($item['description'])): ?>
+                            <p><?= nl2br(e((string) $item['description'])) ?></p>
+                        <?php endif; ?>
+                    </div>
+                </li>
+            <?php endforeach; ?>
+        </ol>
     </div>
 </section>
+<?php endif; ?>
 
-<section class="section<?= $photos ? '' : ' is-compact' ?>" id="gallery">
-    <div class="container<?= $photos ? '' : ' section-row' ?>">
+<?php if ($showGallery): ?>
+<section class="section" id="gallery">
+    <div class="container">
         <div>
             <p class="eyebrow">Photos</p>
             <h2>Gallery</h2>
         </div>
-        <?php if (!$photos): ?>
-            <p class="muted">Class photos appear here as they are published.</p>
-        <?php else: ?>
-            <div class="filters" data-gallery-filters>
-                <?php foreach ($galleryCats as $key => $label): ?>
-                    <button type="button" class="chip<?= $key === 'all' ? ' is-active' : '' ?>" data-gallery-filter="<?= e($key) ?>"><?= e($label) ?></button>
-                <?php endforeach; ?>
-            </div>
-            <div class="masonry" data-gallery-grid>
-                <?php foreach ($photos as $item): ?>
-                    <a href="<?= e(url($item['image_path'])) ?>" data-lightbox data-caption="<?= e($item['caption'] ?: $item['title']) ?>" data-category="<?= e($item['category'] ?? 'class') ?>">
-                        <img src="<?= e(url($item['image_path'])) ?>" alt="<?= e($item['title']) ?>" loading="lazy">
-                    </a>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
+        <div class="filters" data-gallery-filters>
+            <?php foreach ($galleryCats as $key => $label): ?>
+                <button type="button" class="chip<?= $key === 'all' ? ' is-active' : '' ?>" data-gallery-filter="<?= e($key) ?>"><?= e($label) ?></button>
+            <?php endforeach; ?>
+        </div>
+        <div class="masonry" data-gallery-grid>
+            <?php foreach ($photos as $item): ?>
+                <a href="<?= e(url($item['image_path'])) ?>" data-lightbox data-caption="<?= e($item['caption'] ?: $item['title']) ?>" data-category="<?= e($item['category'] ?? 'class') ?>">
+                    <img src="<?= e(url($item['image_path'])) ?>" alt="<?= e($item['title']) ?>" loading="lazy">
+                </a>
+            <?php endforeach; ?>
+        </div>
     </div>
 </section>
+<?php endif; ?>
 
-<section class="section<?= ($memories || $messages) ? '' : ' is-compact' ?>" id="memories">
-    <div class="container<?= ($memories || $messages) ? '' : ' section-row' ?>">
+<?php if ($showMemories): ?>
+<section class="section" id="memories">
+    <div class="container">
         <div>
             <p class="eyebrow">Words</p>
             <h2>Memories</h2>
         </div>
-        <?php if (!$memories && !$messages): ?>
-            <p class="muted">Written memories appear here once they are published.</p>
-        <?php else: ?>
-            <div class="memory-wall">
-                <?php foreach ($messages as $item): ?>
-                    <blockquote class="home-quote">
-                        <p><?= e($item['body']) ?></p>
-                        <footer class="muted"><?= e($item['author_name']) ?></footer>
-                    </blockquote>
-                <?php endforeach; ?>
-                <?php foreach ($memories as $item): ?>
-                    <article class="memory-card">
-                        <blockquote><p><?= e($item['body']) ?></p></blockquote>
-                        <?php if ($item['attribution']): ?><p class="memory-attr">— <?= e($item['attribution']) ?></p><?php endif; ?>
-                    </article>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
+        <div class="memory-wall">
+            <?php foreach ($messages as $item): ?>
+                <blockquote class="home-quote">
+                    <p><?= e($item['body']) ?></p>
+                    <footer class="muted"><?= e($item['author_name']) ?></footer>
+                </blockquote>
+            <?php endforeach; ?>
+            <?php foreach ($memories as $item): ?>
+                <article class="memory-card">
+                    <blockquote><p><?= e($item['body']) ?></p></blockquote>
+                    <?php if ($item['attribution']): ?><p class="memory-attr">— <?= e($item['attribution']) ?></p><?php endif; ?>
+                </article>
+            <?php endforeach; ?>
+        </div>
     </div>
 </section>
+<?php endif; ?>
 
 <section class="section" id="journey">
     <div class="container">
@@ -284,6 +288,7 @@ public_header(site_title(), 'home', setting('hero_message'), true);
     </div>
 </section>
 
+<?php if ($showGraduation): ?>
 <section class="section<?= ($gradDate || setting('graduation_message') || setting('class_message')) ? '' : ' is-compact' ?>" id="graduation">
     <div class="container<?= ($gradDate || setting('graduation_message') || setting('class_message')) ? '' : ' section-row' ?>">
         <div>
@@ -307,34 +312,33 @@ public_header(site_title(), 'home', setting('hero_message'), true);
         </div>
     </div>
 </section>
+<?php endif; ?>
 
+<?php if ($showCommittee): ?>
 <section class="section" id="committee">
     <div class="container">
         <p class="eyebrow">Leadership</p>
         <h2>Committee</h2>
-        <?php if (!$members): ?>
-            <p class="muted">Class officers added in the admin panel appear here.</p>
-        <?php else: ?>
-            <div class="people people-row">
-                <?php foreach ($members as $member): ?>
-                    <article class="person">
-                        <div class="avatar">
-                            <?php if ($member['photo']): ?>
-                                <img src="<?= e(url($member['photo'])) ?>" alt="<?= e($member['name']) ?>">
-                            <?php else: ?>
-                                <?= e(strtoupper(substr($member['name'], 0, 1))) ?>
-                            <?php endif; ?>
-                        </div>
-                        <div class="person-body">
-                            <h3><?= e($member['name']) ?></h3>
-                            <p class="muted"><?= e($member['position']) ?></p>
-                        </div>
-                    </article>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
+        <div class="people people-row">
+            <?php foreach ($members as $member): ?>
+                <article class="person">
+                    <div class="avatar">
+                        <?php if ($member['photo']): ?>
+                            <img src="<?= e(url($member['photo'])) ?>" alt="<?= e($member['name']) ?>">
+                        <?php else: ?>
+                            <?= e(strtoupper(substr($member['name'], 0, 1))) ?>
+                        <?php endif; ?>
+                    </div>
+                    <div class="person-body">
+                        <h3><?= e($member['name']) ?></h3>
+                        <p class="muted"><?= e($member['position']) ?></p>
+                    </div>
+                </article>
+            <?php endforeach; ?>
+        </div>
     </div>
 </section>
+<?php endif; ?>
 
 <section class="section" id="contact">
     <div class="container">

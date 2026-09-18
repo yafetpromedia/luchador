@@ -82,8 +82,8 @@ if (is_post()) {
                 <?= csrf_field() ?>
                 <input type="hidden" name="next" value="<?= e($next) ?>">
                 <div class="form-group">
-                    <label for="username">Username</label>
-                    <input id="username" name="username" type="text" autocomplete="username" required autofocus>
+                    <label for="username">Username or student ID</label>
+                    <input id="username" name="username" type="text" autocomplete="username" autocapitalize="off" spellcheck="false" required autofocus placeholder="Username, student ID, or full name">
                 </div>
                 <div class="form-group">
                     <label for="password">Password</label>
@@ -97,7 +97,7 @@ if (is_post()) {
                 </div>
                 <button class="btn auth-submit" type="submit">Sign in</button>
             </form>
-            <p class="auth-hint">Use the username from the class administrator. Change a temporary password after the first sign-in.</p>
+            <p class="auth-hint">Use your username, student ID, or full name, plus the password from the class administrator. If you never received a login, you are on the roster but do not have an account yet.</p>
             <p><a class="text-link" href="<?= e(url('index.php')) ?>">Back to the class <?= icon('arrow-right', 16) ?></a></p>
         </section>
     </main>

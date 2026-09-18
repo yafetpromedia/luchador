@@ -164,7 +164,7 @@ admin_page_head('Create logins for existing students. This never adds, edits, or
 
 <section class="panel">
     <h2>Generate student accounts</h2>
-    <p>This creates one login for each existing student who does not already have an account. Existing accounts are never overwritten. Student and uniform records are not changed.</p>
+    <p>This creates one login for each existing student who does not already have an account. Being on the class roster is not enough to sign in. Existing accounts are never overwritten. Student and uniform records are not changed.</p>
     <?php if ($without): ?>
         <p class="muted">Examples of students still without accounts:</p>
         <ul>

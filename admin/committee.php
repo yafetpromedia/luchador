@@ -44,14 +44,16 @@ if (is_post()) {
             if ($name === '' || $position === '') {
                 throw new InvalidArgumentException('Name and position are required.');
             }
-            $params = [$name, $position, posted('bio'), $photo, (int) posted('display_order')];
+            $visibility = posted_visibility($edit);
+            $published = published_flag_for_visibility($visibility);
+            $params = [$name, $position, posted('bio'), $photo, (int) posted('display_order'), $published, $visibility];
             if ($id) {
                 $params[] = $id;
-                db()->prepare('UPDATE committee_members SET name=?, position=?, bio=?, photo=?, display_order=? WHERE id=?')->execute($params);
+                db()->prepare('UPDATE committee_members SET name=?, position=?, bio=?, photo=?, display_order=?, published=?, visibility=? WHERE id=?')->execute($params);
                 log_audit('committee.save', 'committee', $id, $name);
                 flash_set('success', 'Member updated.');
             } else {
-                db()->prepare('INSERT INTO committee_members (name, position, bio, photo, display_order) VALUES (?,?,?,?,?)')->execute($params);
+                db()->prepare('INSERT INTO committee_members (name, position, bio, photo, display_order, published, visibility) VALUES (?,?,?,?,?,?,?)')->execute($params);
                 log_audit('committee.save', 'committee', (int) db()->lastInsertId(), $name);
                 flash_set('success', 'Member added.');
             }
@@ -67,7 +69,7 @@ if (is_post()) {
 
 $rows = db()->query('SELECT * FROM committee_members ORDER BY display_order ASC, id ASC')->fetchAll();
 admin_header($edit ? 'Edit committee member' : 'Committee', 'committee');
-admin_page_head('Replace placeholder officer names with the real committee. Do not invent names just to fill the page.');
+admin_page_head('Committee members stay class-only until you set Public website.');
 ?>
 
 <?php if (can('committee.manage')): ?>
@@ -82,6 +84,7 @@ admin_page_head('Replace placeholder officer names with the real committee. Do n
             <div class="form-group full"><label>Short bio</label><textarea name="bio"><?= e($edit['bio'] ?? '') ?></textarea></div>
             <div class="form-group"><label>Display order</label><input type="number" name="display_order" value="<?= e((string) ($edit['display_order'] ?? '0')) ?>"></div>
             <div class="form-group"><label>Photo</label><input type="file" name="photo" accept="image/jpeg,image/png,image/webp,image/gif"></div>
+            <?= visibility_select($edit) ?>
         </div>
         <div class="form-actions" style="margin-top:1rem">
             <button class="btn" type="submit">Save member</button>
@@ -104,6 +107,7 @@ admin_page_head('Replace placeholder officer names with the real committee. Do n
             <?php endif; ?>
             <h3><?= e($row['name']) ?></h3>
             <p class="muted"><?= e($row['position']) ?></p>
+            <?= admin_visibility_badge($row) ?>
             <?php if (can('committee.manage')): ?>
             <div class="row-actions">
                 <a class="btn btn-sm btn-ghost" href="?edit=<?= (int) $row['id'] ?>">Edit</a>

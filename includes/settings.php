@@ -89,13 +89,14 @@ function public_stats(): array
 
     try {
         $pdo = db();
-        if (table_exists($pdo, 'uniforms')) {
-            $stats['students'] = (int) $pdo->query('SELECT COUNT(*) FROM uniforms')->fetchColumn();
-        }
-        if (table_exists($pdo, 'events')) {
+        if (table_exists($pdo, 'events') && column_exists($pdo, 'events', 'visibility')) {
+            $stats['events'] = (int) $pdo->query("SELECT COUNT(*) FROM events WHERE visibility = 'public'")->fetchColumn();
+        } elseif (table_exists($pdo, 'events')) {
             $stats['events'] = (int) $pdo->query("SELECT COUNT(*) FROM events WHERE published = 1")->fetchColumn();
         }
-        if (table_exists($pdo, 'achievements')) {
+        if (table_exists($pdo, 'achievements') && column_exists($pdo, 'achievements', 'visibility')) {
+            $stats['achievements'] = (int) $pdo->query("SELECT COUNT(*) FROM achievements WHERE visibility = 'public'")->fetchColumn();
+        } elseif (table_exists($pdo, 'achievements')) {
             $stats['achievements'] = (int) $pdo->query("SELECT COUNT(*) FROM achievements WHERE published = 1")->fetchColumn();
         }
     } catch (Throwable $e) {

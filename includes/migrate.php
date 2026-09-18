@@ -661,6 +661,32 @@ function migrate_class_brand(PDO $pdo): void
     $pdo->exec("UPDATE settings SET setting_value = REPLACE(setting_value, 'Luchadore', 'Luchador')");
 }
 
+function migrate_content_visibility(PDO $pdo): void
+{
+    $tables = [
+        'events',
+        'announcements',
+        'gallery',
+        'achievements',
+        'timeline_milestones',
+        'memories',
+        'spotlights',
+        'class_messages',
+        'committee_members',
+    ];
+    foreach ($tables as $table) {
+        if (!table_exists($pdo, $table)) {
+            continue;
+        }
+        add_column_if_missing($pdo, $table, 'visibility', "VARCHAR(20) NOT NULL DEFAULT 'private'");
+        if (!column_exists($pdo, $table, 'published')) {
+            add_column_if_missing($pdo, $table, 'published', 'TINYINT(1) NOT NULL DEFAULT 0');
+        }
+        $pdo->exec("UPDATE `$table` SET visibility = 'public' WHERE published = 1 AND visibility IN ('private', '')");
+        $pdo->exec("UPDATE `$table` SET published = IF(visibility = 'public', 1, 0)");
+    }
+}
+
 function ensure_schema(): void
 {
     static $done = false;
@@ -693,6 +719,7 @@ function ensure_schema(): void
         migrate_notifications($pdo);
         migrate_interactions($pdo);
         migrate_class_brand($pdo);
+        migrate_content_visibility($pdo);
     } catch (Throwable $e) {
         app_log('ensure_schema: ' . $e->getMessage());
     }

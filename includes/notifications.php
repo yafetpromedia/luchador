@@ -143,8 +143,23 @@ function notify_class(array $payload): void
 
 function notify_if_published(bool $wasPublished, bool $nowPublished, array $payload): void
 {
-    if ($nowPublished && !$wasPublished) {
+    notify_if_visibility($wasPublished ? 'public' : 'draft', $nowPublished ? 'public' : 'private', $payload);
+}
+
+function notify_if_visibility(string $was, string $now, array $payload): void
+{
+    $was = normalize_content_visibility($was !== '' ? $was : 'draft', 'draft');
+    $now = normalize_content_visibility($now !== '' ? $now : 'draft', 'draft');
+    $wasPublic = $was === 'public';
+    $nowPublic = $now === 'public';
+    $wasClass = in_array($was, ['private', 'public'], true);
+    $nowClass = in_array($now, ['private', 'public'], true);
+    if ($nowPublic && !$wasPublic) {
         notify_class($payload);
+        return;
+    }
+    if ($nowClass && !$wasClass) {
+        notify_students($payload);
     }
 }
 

@@ -57,8 +57,8 @@ function admin_header(string $title, string $active = 'index'): void
     <title><?= e($title) ?> · <?= e(class_name()) ?> Admin</title>
     <link rel="icon" href="<?= e(url('assets/images/favicon.svg')) ?>" type="image/svg+xml">
     <?php site_font_links(); ?>
-    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=47">
-    <link rel="stylesheet" href="<?= e(url('assets/css/admin.css')) ?>?v=35">
+    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=49">
+    <link rel="stylesheet" href="<?= e(url('assets/css/admin.css')) ?>?v=36">
 </head>
 <body class="admin-body">
     <a class="skip-link" href="#main">Skip to content</a>
@@ -174,9 +174,30 @@ function admin_empty(string $title, string $text): void
 
 function admin_published_badge(mixed $published): string
 {
-    return !empty($published)
-        ? '<span class="badge badge-published">Live</span>'
-        : '<span class="badge">Draft</span>';
+    return admin_visibility_badge(!empty($published) ? 'public' : 'private');
+}
+
+function admin_visibility_badge(array|string $row): string
+{
+    $vis = is_array($row) ? content_visibility_of($row) : normalize_content_visibility((string) $row);
+    $class = match ($vis) {
+        'public' => 'badge-published',
+        'private' => 'badge-private',
+        'archived' => 'badge-cancelled',
+        default => '',
+    };
+    return '<span class="badge ' . $class . '">' . e(status_label($vis)) . '</span>';
+}
+
+function visibility_select(?array $row = null, string $name = 'visibility'): string
+{
+    $current = $row ? content_visibility_of($row) : 'private';
+    $html = '<div class="form-group full"><label>Visibility</label><select name="' . e($name) . '">';
+    foreach (content_visibilities() as $key => $label) {
+        $html .= '<option value="' . e($key) . '"' . ($current === $key ? ' selected' : '') . '>' . e($label) . '</option>';
+    }
+    $html .= '</select><p class="muted">Class only is the default. Nothing appears on the public website unless you choose Public website.</p></div>';
+    return $html;
 }
 
 function admin_status_badge(string $status): string

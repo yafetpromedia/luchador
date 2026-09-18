@@ -23,14 +23,21 @@ function student_account_id(int $studentId): ?int
 function student_account_username(array $student): string
 {
     $code = preg_replace('/[^A-Za-z0-9._-]/', '', (string) ($student['student_code'] ?? '')) ?? '';
-    $base = strlen($code) >= 3 ? strtolower($code) : ('s' . (int) $student['id']);
+    if (strlen($code) >= 2) {
+        $base = strtolower($code);
+    } else {
+        $name = trim((string) ($student['student_name'] ?? ''));
+        $parts = preg_split('/\s+/', $name) ?: [];
+        $first = strtolower(preg_replace('/[^a-z0-9]/', '', (string) ($parts[0] ?? '')) ?? '');
+        $base = strlen($first) >= 3 ? $first : ('s' . (int) ($student['id'] ?? 0));
+    }
     $username = $base;
     $n = 2;
     while (username_taken($username)) {
         $username = $base . $n;
         $n++;
         if ($n > 50) {
-            $username = 's' . (int) $student['id'] . random_int(10, 99);
+            $username = 's' . (int) ($student['id'] ?? 0) . random_int(10, 99);
             break;
         }
     }

@@ -10,8 +10,8 @@ require_once dirname(__DIR__) . '/includes/calendar-view.php';
 student_boot();
 
 $monthParam = request_str('month');
-$month = $monthParam !== '' ? parse_year_month($monthParam) : default_calendar_month();
-$cal = calendar_month_events($month);
+$month = $monthParam !== '' ? parse_year_month($monthParam) : default_calendar_month('class');
+$cal = calendar_month_events($month, null, 'class');
 $day = request_int('day');
 if ($day < 1 || $day > (int) $month->format('t')) {
     $day = 0;
@@ -35,6 +35,7 @@ render_class_calendar([
     'hash' => '',
     'category' => 'all',
     'event_base' => 'student/event.php',
+    'next' => next_class_event(),
 ]);
 ?>
 </div>

@@ -48,19 +48,21 @@ if (is_post()) {
             if (!array_key_exists($category, achievement_categories())) {
                 $category = 'class';
             }
-            $params = [$title, posted('description'), posted('achieved_on') ?: null, $category, $image, posted('published') === '1' ? 1 : 0];
+            $visibility = posted_visibility($edit);
+            $published = published_flag_for_visibility($visibility);
+            $params = [$title, posted('description'), posted('achieved_on') ?: null, $category, $image, $published, $visibility];
             if ($id) {
                 $params[] = $id;
-                db()->prepare('UPDATE achievements SET title=?, description=?, achieved_on=?, category=?, image=?, published=? WHERE id=?')->execute($params);
+                db()->prepare('UPDATE achievements SET title=?, description=?, achieved_on=?, category=?, image=?, published=?, visibility=? WHERE id=?')->execute($params);
                 log_audit('achievement.save', 'achievement', $id, $title);
                 flash_set('success', 'Achievement updated.');
             } else {
-                db()->prepare('INSERT INTO achievements (title, description, achieved_on, category, image, published) VALUES (?,?,?,?,?,?)')->execute($params);
+                db()->prepare('INSERT INTO achievements (title, description, achieved_on, category, image, published, visibility) VALUES (?,?,?,?,?,?,?)')->execute($params);
                 $id = (int) db()->lastInsertId();
                 log_audit('achievement.save', 'achievement', $id, $title);
                 flash_set('success', 'Achievement created.');
             }
-            notify_if_published((int) ($edit['published'] ?? 0) === 1, posted('published') === '1', [
+            notify_if_visibility($edit ? content_visibility_of($edit) : 'draft', $visibility, [
                 'type' => 'achievement.published',
                 'title' => 'New achievement',
                 'body' => $title,
@@ -82,7 +84,7 @@ if (is_post()) {
 
 $rows = db()->query('SELECT * FROM achievements ORDER BY id DESC')->fetchAll();
 admin_header($edit ? 'Edit achievement' : 'Achievements', 'achievements');
-admin_page_head('Record verified class achievements. Unpublished items stay off the public site.');
+admin_page_head('Achievements stay class-only until you set Public website.');
 ?>
 
 <?php if (can('achievements.manage')): ?>
@@ -104,7 +106,7 @@ admin_page_head('Record verified class achievements. Unpublished items stay off 
                 </select>
             </div>
             <div class="form-group full"><label>Image</label><input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif"></div>
-            <div class="form-group full"><label class="check"><input type="checkbox" name="published" value="1" <?= !empty($edit['published']) ? 'checked' : '' ?>> Published</label></div>
+            <?= visibility_select($edit) ?>
         </div>
         <div class="form-actions" style="margin-top:1rem">
             <button class="btn" type="submit">Save achievement</button>
@@ -119,13 +121,13 @@ admin_page_head('Record verified class achievements. Unpublished items stay off 
 <?php else: ?>
 <div class="table-wrap">
 <table>
-    <thead><tr><th>Title</th><th>Category</th><th>Published</th><th></th></tr></thead>
+    <thead><tr><th>Title</th><th>Category</th><th>Visibility</th><th></th></tr></thead>
     <tbody>
     <?php foreach ($rows as $row): ?>
         <tr>
             <td><?= admin_title_cell((string) $row['title'], $row['image'] ?? null) ?></td>
             <td><?= e(status_label((string) $row['category'])) ?></td>
-            <td><?= admin_published_badge($row['published'] ?? 0) ?></td>
+            <td><?= admin_visibility_badge($row) ?></td>
             <td class="row-actions">
                 <a class="btn btn-sm btn-ghost" href="?edit=<?= (int) $row['id'] ?>">Edit</a>
                 <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int) $row['id'] ?>"><button class="btn btn-sm btn-danger" data-confirm="This action cannot be undone." data-confirm-title="Delete achievement?">Delete</button></form>

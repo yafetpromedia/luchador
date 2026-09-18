@@ -11,7 +11,7 @@ student_boot();
 $date = setting('graduation_date');
 $title = setting('graduation_title', 'Graduation');
 $message = setting('graduation_message');
-$events = function_exists('published_events_by_category') ? published_events_by_category('graduation', 6) : [];
+$events = class_events_by_category('graduation', 6);
 
 student_header('Graduation', 'graduation', lead: 'Countdown and graduation events, once they are set.');
 ?>

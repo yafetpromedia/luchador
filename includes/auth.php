@@ -109,6 +109,10 @@ function require_login(): void
         $path = substr($path, strlen($base));
     }
     $path = ltrim($path, '/');
+    $query = (string) ($_SERVER['QUERY_STRING'] ?? '');
+    if ($path !== '' && $query !== '') {
+        $path .= '?' . $query;
+    }
     $next = $path !== '' ? $path : login_default_next();
     redirect('login.php?next=' . urlencode($next));
 }
@@ -248,10 +252,67 @@ function register_login_failure(): void
 
 function find_user_by_username(string $username): ?array
 {
+    $username = trim($username);
+    if ($username === '') {
+        return null;
+    }
     $stmt = db()->prepare('SELECT * FROM users WHERE username = ? LIMIT 1');
     $stmt->execute([$username]);
     $row = $stmt->fetch();
     return $row ? normalize_user_row($row, true) : null;
+}
+
+function find_user_for_login(string $login): ?array
+{
+    $login = trim($login);
+    if ($login === '') {
+        return null;
+    }
+
+    $user = find_user_by_username($login);
+    if ($user) {
+        return $user;
+    }
+
+    $stmt = db()->prepare('SELECT * FROM users WHERE LOWER(username) = LOWER(?) LIMIT 1');
+    $stmt->execute([$login]);
+    $row = $stmt->fetch();
+    if ($row) {
+        return normalize_user_row($row, true);
+    }
+
+    if (!column_exists(db(), 'users', 'student_id') || !table_exists(db(), 'uniforms')) {
+        return null;
+    }
+
+    $stmt = db()->prepare(
+        'SELECT u.*
+         FROM users u
+         INNER JOIN uniforms s ON s.id = u.student_id
+         WHERE s.student_code IS NOT NULL
+           AND TRIM(s.student_code) != \'\'
+           AND LOWER(TRIM(s.student_code)) = LOWER(?)
+         LIMIT 1'
+    );
+    $stmt->execute([$login]);
+    $row = $stmt->fetch();
+    if ($row) {
+        return normalize_user_row($row, true);
+    }
+
+    $stmt = db()->prepare(
+        'SELECT u.*
+         FROM users u
+         INNER JOIN uniforms s ON s.id = u.student_id
+         WHERE LOWER(TRIM(s.student_name)) = LOWER(?)'
+    );
+    $stmt->execute([$login]);
+    $rows = $stmt->fetchAll();
+    if (count($rows) === 1) {
+        return normalize_user_row($rows[0], true);
+    }
+
+    return null;
 }
 
 function authenticate_credentials(string $username, string $password): array
@@ -260,12 +321,14 @@ function authenticate_credentials(string $username, string $password): array
     if ($dummyHash === null) {
         $dummyHash = password_hash('invalid-login-placeholder', PASSWORD_DEFAULT);
     }
-    $user = $username !== '' ? find_user_by_username($username) : null;
+    $username = trim($username);
+    $password = trim($password);
+    $user = $username !== '' ? find_user_for_login($username) : null;
     $hash = $user['password'] ?? $dummyHash;
-    $verified = $user !== null && password_verify($password, $hash);
+    $verified = $user !== null && $password !== '' && password_verify($password, $hash);
     if (!$verified) {
         if ($user === null) {
-            password_verify($password, $dummyHash);
+            password_verify($password !== '' ? $password : 'x', $dummyHash);
         }
         register_login_failure();
         throw new RuntimeException('invalid');

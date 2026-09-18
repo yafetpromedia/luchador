@@ -39,20 +39,23 @@ if (is_post()) {
             if (!array_key_exists($role, message_roles())) {
                 $role = 'class';
             }
+            $visibility = posted_visibility($edit);
+            $published = published_flag_for_visibility($visibility);
             $params = [
                 $name,
                 $role,
                 $body,
-                posted('published') === '1' ? 1 : 0,
+                $published,
+                $visibility,
                 posted('display_order') !== '' ? (int) posted('display_order') : 0,
             ];
             if ($id) {
                 $params[] = $id;
-                db()->prepare('UPDATE class_messages SET author_name=?, author_role=?, body=?, published=?, display_order=? WHERE id=?')->execute($params);
+                db()->prepare('UPDATE class_messages SET author_name=?, author_role=?, body=?, published=?, visibility=?, display_order=? WHERE id=?')->execute($params);
                 log_audit('message.save', 'message', $id, $name);
                 flash_set('success', 'Message updated.');
             } else {
-                db()->prepare('INSERT INTO class_messages (author_name, author_role, body, published, display_order) VALUES (?,?,?,?,?)')->execute($params);
+                db()->prepare('INSERT INTO class_messages (author_name, author_role, body, published, visibility, display_order) VALUES (?,?,?,?,?,?)')->execute($params);
                 log_audit('message.save', 'message', (int) db()->lastInsertId(), $name);
                 flash_set('success', 'Message created.');
             }
@@ -68,7 +71,7 @@ if (is_post()) {
 
 $rows = db()->query('SELECT * FROM class_messages ORDER BY display_order ASC, id DESC')->fetchAll();
 admin_header($edit ? 'Edit message' : 'Class messages', 'messages');
-admin_page_head('Messages from the president, committee, teachers, or graduation committee. Unpublished messages stay private.');
+admin_page_head('Messages stay class-only until you set Public website.');
 ?>
 
 <?php if (can('messages.manage')): ?>
@@ -89,7 +92,7 @@ admin_page_head('Messages from the president, committee, teachers, or graduation
             </div>
             <div class="form-group full"><label>Message</label><textarea name="body" required><?= e($edit['body'] ?? '') ?></textarea></div>
             <div class="form-group"><label>Display order</label><input type="number" name="display_order" value="<?= e((string) ($edit['display_order'] ?? '0')) ?>"></div>
-            <div class="form-group full"><label class="check"><input type="checkbox" name="published" value="1" <?= !empty($edit['published']) ? 'checked' : '' ?>> Published</label></div>
+            <?= visibility_select($edit) ?>
         </div>
         <div class="form-actions" style="margin-top:1rem">
             <button class="btn" type="submit">Save message</button>
@@ -109,7 +112,7 @@ admin_page_head('Messages from the president, committee, teachers, or graduation
             <footer>
                 <span class="quote-who"><?= e($row['author_name']) ?> · <?= e(status_label((string) $row['author_role'])) ?></span>
                 <div class="row-actions">
-                    <?= admin_published_badge($row['published'] ?? 0) ?>
+                    <?= admin_visibility_badge($row) ?>
                     <?php if (can('messages.manage')): ?>
                     <a class="btn btn-sm btn-ghost" href="?edit=<?= (int) $row['id'] ?>">Edit</a>
                     <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int) $row['id'] ?>"><button class="btn btn-sm btn-danger" data-confirm="This action cannot be undone." data-confirm-title="Delete message?">Delete</button></form>

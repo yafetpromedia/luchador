@@ -13,8 +13,8 @@ $categories = function_exists('gallery_categories') ? gallery_categories() : ['a
 if (!isset($categories[$category])) {
     $category = 'all';
 }
-$items = table_exists(db(), 'gallery') ? published_gallery($category) : [];
-student_header('Gallery', 'gallery', lead: 'Published class photographs.');
+$items = class_gallery($category);
+student_header('Gallery', 'gallery', lead: 'Class photographs.');
 ?>
 
 <div class="filters">

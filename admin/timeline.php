@@ -38,6 +38,8 @@ if (is_post()) {
             if (!array_key_exists($stage, timeline_stages())) {
                 $stage = 'milestone';
             }
+            $visibility = posted_visibility($edit);
+            $published = published_flag_for_visibility($visibility);
             $params = [
                 $title,
                 posted('description'),
@@ -45,15 +47,16 @@ if (is_post()) {
                 $stage,
                 posted('highlight') === '1' ? 1 : 0,
                 posted('display_order') !== '' ? (int) posted('display_order') : 0,
-                posted('published') === '1' ? 1 : 0,
+                $published,
+                $visibility,
             ];
             if ($id) {
                 $params[] = $id;
-                db()->prepare('UPDATE timeline_milestones SET title=?, description=?, occurred_on=?, stage=?, highlight=?, display_order=?, published=? WHERE id=?')->execute($params);
+                db()->prepare('UPDATE timeline_milestones SET title=?, description=?, occurred_on=?, stage=?, highlight=?, display_order=?, published=?, visibility=? WHERE id=?')->execute($params);
                 log_audit('timeline.save', 'timeline', $id, $title);
                 flash_set('success', 'Milestone updated.');
             } else {
-                db()->prepare('INSERT INTO timeline_milestones (title, description, occurred_on, stage, highlight, display_order, published) VALUES (?,?,?,?,?,?,?)')->execute($params);
+                db()->prepare('INSERT INTO timeline_milestones (title, description, occurred_on, stage, highlight, display_order, published, visibility) VALUES (?,?,?,?,?,?,?,?)')->execute($params);
                 log_audit('timeline.save', 'timeline', (int) db()->lastInsertId(), $title);
                 flash_set('success', 'Milestone created.');
             }
@@ -69,7 +72,7 @@ if (is_post()) {
 
 $rows = db()->query('SELECT * FROM timeline_milestones ORDER BY display_order ASC, (occurred_on IS NULL), occurred_on ASC, id ASC')->fetchAll();
 admin_header($edit ? 'Edit milestone' : 'Journey', 'timeline');
-admin_page_head('Add real senior-year milestones only. Unpublished items stay off the public journey.');
+admin_page_head('Add real senior-year milestones only. New items stay class-only until you choose Public website.');
 ?>
 
 <?php if (can('timeline.manage')): ?>
@@ -92,7 +95,7 @@ admin_page_head('Add real senior-year milestones only. Unpublished items stay of
             </div>
             <div class="form-group"><label>Display order</label><input type="number" name="display_order" value="<?= e((string) ($edit['display_order'] ?? '0')) ?>"></div>
             <div class="form-group full"><label class="check"><input type="checkbox" name="highlight" value="1" <?= !empty($edit['highlight']) ? 'checked' : '' ?>> Mark as “you are here”</label></div>
-            <div class="form-group full"><label class="check"><input type="checkbox" name="published" value="1" <?= !empty($edit['published']) ? 'checked' : '' ?>> Published</label></div>
+            <?= visibility_select($edit) ?>
         </div>
         <div class="form-actions" style="margin-top:1rem">
             <button class="btn" type="submit">Save milestone</button>
@@ -107,14 +110,14 @@ admin_page_head('Add real senior-year milestones only. Unpublished items stay of
 <?php else: ?>
 <div class="table-wrap">
 <table>
-    <thead><tr><th>Title</th><th>Stage</th><th>Date</th><th>Published</th><th></th></tr></thead>
+    <thead><tr><th>Title</th><th>Stage</th><th>Date</th><th>Visibility</th><th></th></tr></thead>
     <tbody>
     <?php foreach ($rows as $row): ?>
         <tr>
             <td><?= e($row['title']) ?><?php if (!empty($row['highlight'])): ?> <span class="badge">Here</span><?php endif; ?></td>
             <td><?= e(status_label((string) $row['stage'])) ?></td>
             <td><?= e(format_date($row['occurred_on'])) ?></td>
-            <td><?= admin_published_badge($row['published'] ?? 0) ?></td>
+            <td><?= admin_visibility_badge($row) ?></td>
             <td class="row-actions">
                 <a class="btn btn-sm btn-ghost" href="?edit=<?= (int) $row['id'] ?>">Edit</a>
                 <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int) $row['id'] ?>"><button class="btn btn-sm btn-danger" data-confirm="This action cannot be undone." data-confirm-title="Delete milestone?">Delete</button></form>

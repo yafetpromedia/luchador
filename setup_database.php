@@ -10,6 +10,13 @@ start_app_session();
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/migrate.php';
 
+if (app_is_production()) {
+    http_response_code(404);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo 'Not found.';
+    exit;
+}
+
 $messages = [];
 $errors = [];
 $createdAdmin = false;

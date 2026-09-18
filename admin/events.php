@@ -48,6 +48,8 @@ if (is_post()) {
             if (!array_key_exists($category, event_categories())) {
                 $category = 'class';
             }
+            $visibility = posted_visibility($edit);
+            $published = published_flag_for_visibility($visibility);
             $params = [
                 $title,
                 posted('description'),
@@ -56,21 +58,22 @@ if (is_post()) {
                 posted('location') ?: null,
                 $cover,
                 in_array(posted('status'), ['upcoming','ongoing','completed','cancelled'], true) ? posted('status') : 'upcoming',
-                posted('published') === '1' ? 1 : 0,
+                $published,
+                $visibility,
                 $category,
             ];
             if ($id) {
                 $params[] = $id;
-                db()->prepare('UPDATE events SET title=?, description=?, event_date=?, event_time=?, location=?, cover_image=?, status=?, published=?, category=? WHERE id=?')->execute($params);
+                db()->prepare('UPDATE events SET title=?, description=?, event_date=?, event_time=?, location=?, cover_image=?, status=?, published=?, visibility=?, category=? WHERE id=?')->execute($params);
                 log_audit('event.save', 'event', $id, $title);
                 flash_set('success', 'Event updated.');
             } else {
-                db()->prepare('INSERT INTO events (title, description, event_date, event_time, location, cover_image, status, published, category) VALUES (?,?,?,?,?,?,?,?,?)')->execute($params);
+                db()->prepare('INSERT INTO events (title, description, event_date, event_time, location, cover_image, status, published, visibility, category) VALUES (?,?,?,?,?,?,?,?,?,?)')->execute($params);
                 $id = (int) db()->lastInsertId();
                 log_audit('event.save', 'event', $id, $title);
                 flash_set('success', 'Event created.');
             }
-            notify_if_published((int) ($edit['published'] ?? 0) === 1, posted('published') === '1', [
+            notify_if_visibility($edit ? content_visibility_of($edit) : 'draft', $visibility, [
                 'type' => 'event.published',
                 'title' => 'New class event',
                 'body' => $title,
@@ -96,7 +99,7 @@ if ($edit && !can('events.edit')) {
 }
 $showEventForm = ($edit && can('events.edit')) || (!$edit && can('events.create'));
 admin_header($edit ? 'Edit event' : 'Calendar', 'events');
-admin_page_head('Publish class dates. Unpublished events stay off the public calendar.');
+admin_page_head('Class dates stay private until you set Public website.');
 ?>
 
 <?php if ($showEventForm): ?>
@@ -128,7 +131,7 @@ admin_page_head('Publish class dates. Unpublished events stay off the public cal
                 </select>
             </div>
             <div class="form-group full"><label>Cover image</label><input type="file" name="cover_image" accept="image/jpeg,image/png,image/webp,image/gif"></div>
-            <div class="form-group full"><label class="check"><input type="checkbox" name="published" value="1" <?= !empty($edit['published']) ? 'checked' : '' ?>> Published</label></div>
+            <?= visibility_select($edit) ?>
         </div>
         <div class="form-actions" style="margin-top:1rem">
             <button class="btn" type="submit">Save event</button>
@@ -139,11 +142,11 @@ admin_page_head('Publish class dates. Unpublished events stay off the public cal
 <?php endif; ?>
 
 <?php if (!$rows): ?>
-    <?php admin_empty('No events yet.', 'Add an event above. It stays private until it is published.'); ?>
+    <?php admin_empty('No events yet.', 'Add an event above. It stays class-only until you choose Public website.'); ?>
 <?php else: ?>
 <div class="table-wrap">
 <table>
-    <thead><tr><th>Title</th><th>Date</th><th>Category</th><th>Status</th><th>Published</th><th></th></tr></thead>
+    <thead><tr><th>Title</th><th>Date</th><th>Category</th><th>Status</th><th>Visibility</th><th></th></tr></thead>
     <tbody>
     <?php foreach ($rows as $row): ?>
         <tr>
@@ -151,7 +154,7 @@ admin_page_head('Publish class dates. Unpublished events stay off the public cal
             <td><?= e(format_date($row['event_date'])) ?></td>
             <td><?= e(status_label((string) ($row['category'] ?? 'class'))) ?></td>
             <td><?= admin_status_badge((string) $row['status']) ?></td>
-            <td><?= admin_published_badge($row['published'] ?? 0) ?></td>
+            <td><?= admin_visibility_badge($row) ?></td>
             <td class="row-actions">
                 <?php if (can('events.edit')): ?><a class="btn btn-sm btn-ghost" href="?edit=<?= (int) $row['id'] ?>">Edit</a><?php endif; ?>
                 <?php if (can('events.delete')): ?><form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int) $row['id'] ?>"><button class="btn btn-sm btn-danger" data-confirm="This action cannot be undone." data-confirm-title="Delete event?">Delete</button></form><?php endif; ?>

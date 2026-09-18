@@ -8,14 +8,14 @@ require_once dirname(__DIR__) . '/includes/queries.php';
 
 student_boot();
 
-$event = find_published_event(request_int('id'));
+$event = find_class_event(request_int('id'));
 if (!$event) {
     flash_set('error', 'That event is not available.');
     redirect('student/events.php');
 }
 
 $others = [];
-foreach (published_events() as $item) {
+foreach (class_events() as $item) {
     if ((int) $item['id'] === (int) $event['id']) {
         continue;
     }
