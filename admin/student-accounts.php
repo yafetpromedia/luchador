@@ -25,7 +25,7 @@ if (is_post()) {
             }
             $created = create_student_user_account($record);
             log_audit('user.create', 'user', (int) $created['user_id'], $created['full_name']);
-            set_one_time_credentials([$created], 'Account created. Copy the temporary password now — it is not stored.');
+            set_one_time_credentials([$created], 'Account created. Print this slip and give it to the student. The temporary password is not stored.');
             flash_set('success', 'Student account created.');
             redirect('admin/student-accounts.php');
         }
@@ -41,7 +41,7 @@ if (is_post()) {
             }
             log_audit('student_accounts.generate', 'user', null, (string) count($created) . ' accounts');
             if ($created) {
-                set_one_time_credentials($created, count($created) . ' temporary passwords were generated. Download or copy them now. They are not stored permanently.');
+                set_one_time_credentials($created, count($created) . ' logins are ready. Print the slips and give each student their username and temporary password. They are not stored after you leave this screen.');
             }
             flash_set('success', $created ? count($created) . ' student accounts created.' : 'Every student already has an account.');
             redirect('admin/student-accounts.php');
@@ -52,7 +52,7 @@ if (is_post()) {
                 throw new InvalidArgumentException('There are no temporary credentials to download.');
             }
             header('Content-Type: text/csv; charset=utf-8');
-            header('Content-Disposition: attachment; filename="luchadore-student-credentials.csv"');
+            header('Content-Disposition: attachment; filename="luchador-student-logins.csv"');
             $out = fopen('php://output', 'w');
             fputcsv($out, ['full_name', 'username', 'student_code', 'temporary_password']);
             foreach ($payload['rows'] as $row) {
@@ -75,13 +75,18 @@ if (is_post()) {
             $temp = generate_temp_password(12);
             db()->prepare('UPDATE users SET password = ?, must_change_password = 1 WHERE id = ?')
                 ->execute([password_hash($temp, PASSWORD_DEFAULT), $userId]);
+            $code = '';
+            if (!empty($target['student_id'])) {
+                $linked = student_by_id((int) $target['student_id']);
+                $code = (string) ($linked['student_code'] ?? '');
+            }
             log_audit('user.password_reset', 'user', $userId, $target['full_name'] ?: $target['username']);
             set_one_time_credentials([[
                 'username' => $target['username'],
                 'full_name' => $target['full_name'] ?: $target['username'],
-                'student_code' => '',
+                'student_code' => $code,
                 'password' => $temp,
-            ]], 'Temporary password generated. Copy it now — it will not be stored.');
+            ]], 'Temporary password generated. Print this slip and give it to the student. It will not be stored.');
             flash_set('success', 'Password reset.');
             redirect('admin/student-accounts.php');
         }
@@ -109,6 +114,14 @@ if (is_post()) {
 $stats = student_account_stats();
 $without = students_without_accounts(12);
 $credentials = one_time_credentials();
+if (request_str('print') === '1') {
+    if (!$credentials || empty($credentials['rows'])) {
+        flash_set('error', 'There are no temporary passwords to print. Create or reset accounts first.');
+        redirect('admin/student-accounts.php');
+    }
+    render_student_login_slips($credentials);
+    exit;
+}
 $accounts = db()->query(
     'SELECT u.id, u.username, u.full_name, u.is_active, u.last_login_at, u.must_change_password, s.student_name, s.student_code
      FROM users u
@@ -117,41 +130,38 @@ $accounts = db()->query(
 )->fetchAll();
 
 admin_header('Student accounts', 'student-accounts');
-admin_page_head('Create logins for existing students. This never adds, edits, or deletes student records.');
+admin_page_head('Create logins, then print slips to hand each student a username and temporary password. This never adds, edits, or deletes student records.');
 ?>
 
 <?php if ($credentials): ?>
     <div class="security-callout" role="status">
-        <h2>Temporary credentials</h2>
-        <p><?= e((string) ($credentials['notice'] ?? 'Copy these now. They are not stored permanently.')) ?></p>
-        <?php if (count($credentials['rows']) <= 12): ?>
-            <div class="table-wrap">
-                <table>
-                    <thead><tr><th>Name</th><th>Username</th><th>Temporary password</th></tr></thead>
-                    <tbody>
-                    <?php foreach ($credentials['rows'] as $row): ?>
-                        <tr>
-                            <td><?= e($row['full_name'] ?? '') ?></td>
-                            <td><?= e($row['username'] ?? '') ?></td>
-                            <td><code><?= e($row['password'] ?? '') ?></code></td>
-                        </tr>
-                    <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-        <?php else: ?>
-            <p class="muted"><?= count($credentials['rows']) ?> passwords were generated. Download the CSV — it is not kept on the server.</p>
-        <?php endif; ?>
+        <h2>Ready to print</h2>
+        <p><?= e((string) ($credentials['notice'] ?? 'Print these slips now. Temporary passwords are not stored after you leave this screen.')) ?></p>
+        <div class="table-wrap cred-table-wrap">
+            <table>
+                <thead><tr><th>Name</th><th>Username</th><th>Temporary password</th></tr></thead>
+                <tbody>
+                <?php foreach ($credentials['rows'] as $row): ?>
+                    <tr>
+                        <td><?= e($row['full_name'] ?? '') ?></td>
+                        <td><?= e($row['username'] ?? '') ?></td>
+                        <td><code><?= e($row['password'] ?? '') ?></code></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
         <div class="form-actions" style="margin-top:0.8rem">
+            <a class="btn" href="<?= e(url('admin/student-accounts.php?print=1')) ?>" target="_blank" rel="noopener">Print slips</a>
             <form method="post">
                 <?= csrf_field() ?>
                 <input type="hidden" name="action" value="download_credentials">
-                <button class="btn" type="submit">Download CSV</button>
+                <button class="btn btn-ghost" type="submit">Download CSV</button>
             </form>
             <form method="post">
                 <?= csrf_field() ?>
                 <input type="hidden" name="action" value="clear_credentials">
-                <button class="btn btn-ghost" type="submit">I have copied these</button>
+                <button class="btn btn-ghost" type="submit">I have printed these</button>
             </form>
         </div>
     </div>
@@ -164,7 +174,7 @@ admin_page_head('Create logins for existing students. This never adds, edits, or
 
 <section class="panel">
     <h2>Generate student accounts</h2>
-    <p>This creates one login for each existing student who does not already have an account. Being on the class roster is not enough to sign in. Existing accounts are never overwritten. Student and uniform records are not changed.</p>
+    <p>This creates one login for each existing student who does not already have an account. After it finishes, print the slips and give each student their username and temporary password. Being on the class roster is not enough to sign in. Existing accounts are never overwritten.</p>
     <?php if ($without): ?>
         <p class="muted">Examples of students still without accounts:</p>
         <ul>

@@ -94,6 +94,20 @@ function url(string $path = ''): string
     return ($base === '' ? '' : $base) . '/' . $path;
 }
 
+function absolute_url(string $path = ''): string
+{
+    $rel = url($path);
+    if (preg_match('#^https?://#i', $rel)) {
+        return $rel;
+    }
+    $https = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+    $host = (string) ($_SERVER['HTTP_HOST'] ?? '');
+    if ($host === '') {
+        return $rel;
+    }
+    return ($https ? 'https' : 'http') . '://' . $host . $rel;
+}
+
 function redirect(string $path): void
 {
     if (preg_match('#^https?://#i', $path)) {

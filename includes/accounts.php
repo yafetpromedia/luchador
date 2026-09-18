@@ -145,6 +145,91 @@ function clear_one_time_credentials(): void
     unset($_SESSION['one_time_credentials']);
 }
 
+function render_student_login_slips(array $payload): void
+{
+    $rows = $payload['rows'] ?? [];
+    if (!$rows) {
+        return;
+    }
+    $loginUrl = absolute_url('login.php');
+    $class = class_name();
+    $grade = class_grade();
+    $school = school_name();
+    $count = count($rows);
+    header('Content-Type: text/html; charset=utf-8');
+    ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Print logins · <?= e($class) ?></title>
+    <?php site_font_links(); ?>
+    <style>
+        @page { size: A4; margin: 10mm; }
+        * { box-sizing: border-box; }
+        body { margin: 0; color: #16151a; background: #f4f2ee; font-family: Inter, Segoe UI, Arial, sans-serif; }
+        .toolbar { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; justify-content: space-between; padding: 1rem 1.2rem; background: #fff; border-bottom: 1px solid #eceae6; }
+        .toolbar p { margin: 0; color: #5f5c56; font-size: 0.92rem; }
+        .btn { display: inline-flex; align-items: center; gap: 0.4rem; background: #16151a; color: #fff; border: 0; border-radius: 8px; padding: 10px 16px; font: inherit; font-weight: 600; cursor: pointer; text-decoration: none; }
+        .btn-ghost { background: transparent; color: #16151a; border: 1px solid #d8d4cc; }
+        .sheet { padding: 1rem 1.2rem 2rem; }
+        .slips { display: grid; grid-template-columns: 1fr 1fr; gap: 8mm; }
+        .slip { background: #fff; border: 1px dashed #b7b2a8; padding: 8mm 9mm; break-inside: avoid; page-break-inside: avoid; }
+        .slip-kicker { margin: 0; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: #73706a; }
+        .slip h2 { margin: 0.2rem 0 0.7rem; font-size: 1.12rem; letter-spacing: -0.03em; }
+        .slip dl { margin: 0; }
+        .slip dt { margin: 0.55rem 0 0; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #73706a; }
+        .slip dd { margin: 0.15rem 0 0; font-size: 1.02rem; word-break: break-word; }
+        .slip .secret { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 1.12rem; letter-spacing: 0.04em; }
+        .slip .hint { margin: 0.85rem 0 0; font-size: 0.78rem; color: #5f5c56; line-height: 1.45; }
+        @media print {
+            body { background: #fff; }
+            .toolbar { display: none; }
+            .sheet { padding: 0; }
+            .slip { box-shadow: none; }
+        }
+        @media (max-width: 720px) {
+            .slips { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <p><?= e((string) $count) ?> login <?= $count === 1 ? 'slip' : 'slips' ?> · Cut and give one to each student. These passwords are shown only this once.</p>
+        <div>
+            <button class="btn" type="button" onclick="window.print()">Print slips</button>
+            <a class="btn btn-ghost" href="<?= e(url('admin/student-accounts.php')) ?>">Back</a>
+        </div>
+    </div>
+    <div class="sheet">
+        <div class="slips">
+            <?php foreach ($rows as $row): ?>
+                <article class="slip">
+                    <p class="slip-kicker"><?= e($school) ?> · <?= e($class) ?> · Grade <?= e($grade) ?></p>
+                    <h2><?= e((string) ($row['full_name'] ?? '')) ?></h2>
+                    <dl>
+                        <dt>Sign in at</dt>
+                        <dd><?= e($loginUrl) ?></dd>
+                        <dt>Username</dt>
+                        <dd class="secret"><?= e((string) ($row['username'] ?? '')) ?></dd>
+                        <?php if (trim((string) ($row['student_code'] ?? '')) !== ''): ?>
+                            <dt>Student ID</dt>
+                            <dd><?= e((string) $row['student_code']) ?></dd>
+                        <?php endif; ?>
+                        <dt>Temporary password</dt>
+                        <dd class="secret"><?= e((string) ($row['password'] ?? '')) ?></dd>
+                    </dl>
+                    <p class="hint">You can also sign in with your student ID or full name. Change this password after the first sign-in.</p>
+                </article>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</body>
+</html>
+    <?php
+}
+
 function slugify_role_name(string $name): string
 {
     $slug = strtolower(trim($name));

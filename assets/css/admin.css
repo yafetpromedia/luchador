@@ -522,6 +522,7 @@
 }
 .security-callout h2 { font-size: 1.05rem; margin-bottom: 0.35rem; }
 .security-callout p { margin-bottom: 0.85rem; color: var(--color-text-secondary); }
+.cred-table-wrap { max-height: 22rem; overflow: auto; margin: 0.2rem 0 0.4rem; }
 
 .perm-wrap { margin-top: 1.15rem; }
 .perm-wrap > h3 { font-size: 1.02rem; margin-bottom: 0.35rem; }

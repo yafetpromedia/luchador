@@ -58,7 +58,7 @@ function admin_header(string $title, string $active = 'index'): void
     <link rel="icon" href="<?= e(url('assets/images/favicon.svg')) ?>" type="image/svg+xml">
     <?php site_font_links(); ?>
     <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=49">
-    <link rel="stylesheet" href="<?= e(url('assets/css/admin.css')) ?>?v=36">
+    <link rel="stylesheet" href="<?= e(url('assets/css/admin.css')) ?>?v=37">
 </head>
 <body class="admin-body">
     <a class="skip-link" href="#main">Skip to content</a>
