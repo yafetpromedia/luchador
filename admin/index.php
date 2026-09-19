@@ -30,7 +30,7 @@ if (can_any(['uniforms.view', 'uniforms.edit'])) {
 if (can_any(['students.view', 'students.edit'])) {
     $work[] = ['n' => (int) ($drafts['profile_requests'] ?? 0), 'label' => 'Profile changes waiting', 'href' => 'admin/students.php#profile-requests'];
 }
-if (can_any(['payments.view', 'payments.manage'])) {
+if (can_any(['payments.view', 'payments.manage', 'payments.verify', 'payments.reject'])) {
     $work[] = ['n' => (int) ($drafts['payment_requests'] ?? 0), 'label' => 'Payments to verify', 'href' => 'admin/payments.php#verify'];
 }
 if (can_any(['questions.view', 'questions.moderate'])) {

@@ -137,10 +137,10 @@ admin_page_head('Class identity, contact details, and the public homepage. Chang
 </div>
 <?php endif; ?>
 
-<?php if (can_any(['payments.view', 'payments.manage'])): ?>
+<?php if (can_any(['payments.view', 'payments.manage', 'payments.verify', 'payment_accounts.manage', 'payment_items.manage'])): ?>
 <div class="panel">
     <h2>Payments</h2>
-    <p class="muted">Publish class bank and Telebirr accounts, then verify student receipts before marking them paid.</p>
+    <p class="muted">Manage payment items, class accounts, and receipt verification. Payment details stay private.</p>
     <a class="btn btn-ghost" href="<?= e(url('admin/payments.php')) ?>">Open payments</a>
 </div>
 <?php endif; ?>

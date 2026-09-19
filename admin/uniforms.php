@@ -78,7 +78,7 @@ if ((int) $counts['missing'] > 0 || $missingLabel) {
 admin_header('Uniforms', 'uniforms');
 admin_page_head(
     'Who has a uniform, who is waiting, and which sizes are still needed.',
-    can_any(['payments.view', 'payments.manage'])
+    can_any(['payments.view', 'payments.manage', 'payments.verify', 'payment_accounts.manage'])
         ? ['<a class="btn btn-ghost" href="' . e(url('admin/payments.php')) . '">' . icon('wallet', 16) . ' Payments</a>']
         : []
 );

@@ -12,38 +12,54 @@ student_boot();
 $student = current_student();
 $user = current_user();
 $accounts = payment_accounts(true);
-$pending = $student ? pending_payment_request((int) $student['id']) : null;
-$latest = $student ? latest_payment_request((int) $student['id']) : null;
+$progressList = $student ? student_payment_progress_list((int) $student['id']) : [];
+$historyAll = $student ? payment_transactions_for_student((int) $student['id']) : [];
+$historyStatus = trim((string) ($_GET['status'] ?? 'all'));
+if (!in_array($historyStatus, ['all', 'pending', 'verified', 'rejected'], true)) {
+    $historyStatus = 'all';
+}
+$history = $student ? payment_transactions_for_student((int) $student['id'], $historyStatus) : [];
+$historyCounts = ['all' => 0, 'pending' => 0, 'verified' => 0, 'rejected' => 0];
+foreach ($historyAll as $row) {
+    $historyCounts['all']++;
+    $st = (string) ($row['status'] ?? '');
+    if (isset($historyCounts[$st])) {
+        $historyCounts[$st]++;
+    }
+}
+$historyGroups = [];
+foreach ($history as $row) {
+    $label = trim((string) ($row['item_title'] ?? '')) ?: 'Payment';
+    $historyGroups[$label][] = $row;
+}
 $status = (string) ($student['payment_status'] ?? 'unpaid');
-$canSubmit = $student && can('payment.submit_own') && $status !== 'paid' && !$pending;
-$purpose = setting('payment_purpose');
-$due = setting('payment_amount');
-$instructions = setting('payment_instructions');
+$canSubmit = $student && can('payment.submit_own');
+$today = date('Y-m-d');
 
 if (is_post() && $student) {
     require_csrf();
     $action = posted('action');
     try {
         if ($action === 'payment_cancel') {
-            cancel_payment_request((int) $student['id'], (int) ($user['id'] ?? 0));
+            cancel_payment_transaction((int) $student['id'], (int) posted('transaction_id'), (int) ($user['id'] ?? 0));
             log_audit('payment.cancel', 'student', (int) $student['id'], $student['student_name'] ?? '');
             flash_set('success', 'Your payment proof was withdrawn.');
         } elseif ($action === 'payment_request') {
             if (!can('payment.submit_own')) {
                 deny_access();
             }
-            submit_payment_request($student, $_POST, $_FILES, (int) ($user['id'] ?? 0));
-            log_audit('payment.request', 'student', (int) $student['id'], $student['student_name'] ?? '');
+            $saved = submit_payment_transaction($student, $_POST, $_FILES, (int) ($user['id'] ?? 0));
+            log_audit('payment.request', 'student', (int) $student['id'], payment_audit_detail($saved + ['student_name' => $student['student_name'] ?? '']));
             notify_staff([
                 'type' => 'payment.request',
                 'title' => 'Payment receipt waiting',
-                'body' => (string) ($student['student_name'] ?? 'A student') . ' sent proof of payment.',
+                'body' => (string) ($student['student_name'] ?? 'A student') . ' sent a ' . (format_etb($saved['amount'] ?? null) ?: 'payment') . ' receipt.',
                 'icon' => 'wallet',
-                'url' => 'admin/payments.php',
-                'target_type' => 'student',
-                'target_id' => (int) $student['id'],
+                'url' => 'admin/payments.php?review=' . (int) $saved['id'],
+                'target_type' => 'payment',
+                'target_id' => (int) $saved['id'],
             ]);
-            flash_set('success', 'Receipt sent. Your payment stays as it is until a class administrator verifies it.');
+            flash_set('success', 'Receipt sent. This payment stays pending until a class administrator verifies it.');
         }
     } catch (InvalidArgumentException $e) {
         flash_set('error', $e->getMessage());
@@ -54,32 +70,50 @@ if (is_post() && $student) {
     redirect('student/payment.php');
 }
 
-$pendingReceipt = $pending && !empty($pending['receipt']) ? url((string) $pending['receipt']) : '';
-student_header('Pay', 'payment', lead: 'Copy a class account, pay, then send the receipt.');
+student_header('Pay', 'payment', lead: 'Choose what you are paying for, send the money, then upload each receipt.');
 ?>
 
 <article class="profile-sheet pay-sheet">
-    <div class="pay-status">
-        <p class="eyebrow">Your payment</p>
-        <p><span class="badge badge-<?= e($status) ?>"><?= e(status_label($status)) ?></span></p>
-        <?php if ($purpose !== '' || $due !== ''): ?>
-            <p>
-                <?php if ($purpose !== ''): ?><strong><?= e($purpose) ?></strong><?php endif; ?>
-                <?php if ($due !== ''): ?><span class="student-stat"><?= e(format_etb($due)) ?></span><?php endif; ?>
-            </p>
-        <?php endif; ?>
-        <?php if ($instructions !== ''): ?>
-            <p class="muted"><?= nl2br(e($instructions)) ?></p>
-        <?php endif; ?>
-    </div>
-
     <?php if (!$student): ?>
         <p class="muted">Your account is not linked to a class record. Please contact the class administrator.</p>
-    <?php elseif ($status === 'paid'): ?>
-        <div class="profile-pending">
-            <p class="eyebrow">Verified</p>
-            <p>A class administrator confirmed this payment. You do not need to send another receipt.</p>
+    <?php else: ?>
+        <div class="pay-status">
+            <p class="eyebrow">My payments</p>
+            <p><span class="badge badge-<?= e($status) ?>"><?= e(status_label($status)) ?></span></p>
         </div>
+
+        <?php if ($progressList): ?>
+            <section class="pay-progress-list" aria-label="What you need to pay">
+                <?php foreach ($progressList as $progress): ?>
+                    <?php $item = $progress['item']; ?>
+                    <article class="pay-progress-card">
+                        <h2><?= e($item['title'] ?? 'Payment') ?></h2>
+                        <?php if (!empty($item['description'])): ?>
+                            <p class="muted"><?= nl2br(e((string) $item['description'])) ?></p>
+                        <?php endif; ?>
+                        <?php if ($progress['target'] !== null): ?>
+                            <p class="pay-progress-meta">
+                                <span>Target: <?= e(format_etb($progress['target'])) ?></span>
+                                <span>Paid: <?= e(format_etb($progress['verified']) ?: '0.00 ETB') ?></span>
+                                <span>Remaining: <?= e(format_etb($progress['remaining']) ?: '0.00 ETB') ?></span>
+                            </p>
+                            <?php if ($progress['pending'] > 0): ?>
+                                <p class="muted">Pending: <?= e(format_etb($progress['pending'])) ?></p>
+                            <?php endif; ?>
+                            <div class="pay-bar" role="img" aria-label="<?= (int) $progress['percent'] ?> percent verified">
+                                <span style="width: <?= (int) $progress['percent'] ?>%"></span>
+                            </div>
+                            <p class="muted"><?= (int) $progress['percent'] ?>%</p>
+                        <?php else: ?>
+                            <p class="muted">
+                                Verified: <?= e(format_etb($progress['verified']) ?: '0.00 ETB') ?>
+                                <?php if ($progress['pending'] > 0): ?> · Pending: <?= e(format_etb($progress['pending'])) ?><?php endif; ?>
+                            </p>
+                        <?php endif; ?>
+                    </article>
+                <?php endforeach; ?>
+            </section>
+        <?php endif; ?>
     <?php endif; ?>
 
     <section class="pay-accounts" aria-labelledby="pay-accounts-title">
@@ -87,7 +121,7 @@ student_header('Pay', 'payment', lead: 'Copy a class account, pay, then send the
         <?php if (!$accounts): ?>
             <p class="muted">Payment accounts appear here once the class office publishes them. Ask a class administrator if you need to pay now.</p>
         <?php else: ?>
-            <p class="muted">Use one of these class accounts. Copy the number, pay, then send the receipt below.</p>
+            <p class="muted">Use one of these class accounts. Copy the number, pay, then send a receipt for each transfer.</p>
             <div class="pay-account-list">
                 <?php foreach ($accounts as $account): ?>
                     <article class="pay-account-card">
@@ -98,6 +132,9 @@ student_header('Pay', 'payment', lead: 'Copy a class account, pay, then send the
                         <?php endif; ?>
                         <p class="pay-account-number"><code><?= e($account['account_number']) ?></code></p>
                         <button type="button" class="btn btn-ghost btn-sm" data-copy="<?= e($account['account_number']) ?>">Copy number</button>
+                        <?php if (!empty($account['phone_number']) && (string) $account['phone_number'] !== (string) $account['account_number']): ?>
+                            <p class="muted"><?= e($account['phone_number']) ?></p>
+                        <?php endif; ?>
                         <?php if (!empty($account['notes'])): ?>
                             <p class="muted"><?= e($account['notes']) ?></p>
                         <?php endif; ?>
@@ -107,41 +144,25 @@ student_header('Pay', 'payment', lead: 'Copy a class account, pay, then send the
         <?php endif; ?>
     </section>
 
-    <?php if ($pending): ?>
-        <div class="profile-pending">
-            <p class="eyebrow">Waiting for verification</p>
-            <p>A class administrator still needs to check this receipt. Your payment status does not change until then.</p>
-            <dl class="profile-meta">
-                <div><dt>Paid to</dt><dd><?= e($pending['account_label'] ?: '—') ?></dd></div>
-                <div><dt>Amount</dt><dd><?= e(format_etb($pending['amount'] ?? null) ?: '—') ?></dd></div>
-                <div><dt>Reference</dt><dd><?= e($pending['reference'] ?: '—') ?></dd></div>
-                <div><dt>Marked as</dt><dd><?= e(status_label((string) ($pending['claimed_status'] ?? 'paid'))) ?></dd></div>
-                <?php if ($pendingReceipt !== ''): ?>
-                    <div>
-                        <dt>Receipt</dt>
-                        <dd><a href="<?= e($pendingReceipt) ?>" target="_blank" rel="noopener">View uploaded photo</a></dd>
-                    </div>
-                <?php endif; ?>
-            </dl>
-            <form method="post">
-                <?= csrf_field() ?>
-                <input type="hidden" name="action" value="payment_cancel">
-                <button class="btn btn-ghost" type="submit">Withdraw receipt</button>
-            </form>
-        </div>
-    <?php elseif ($canSubmit): ?>
-        <?php if ($latest && ($latest['status'] ?? '') === 'rejected'): ?>
-            <div class="profile-pending">
-                <p class="eyebrow">Not verified</p>
-                <p><?= e($latest['note'] ?: 'The last receipt was not accepted. Upload a clearer photo or check the account you paid to.') ?></p>
-            </div>
-        <?php endif; ?>
+    <?php if ($canSubmit): ?>
         <form class="profile-edit" method="post" enctype="multipart/form-data" data-loading>
             <?= csrf_field() ?>
             <input type="hidden" name="action" value="payment_request">
-            <p class="eyebrow">Send proof</p>
-            <p class="muted">Pay first, then upload a photo of your own receipt or transfer screenshot. A transaction ID or photo already used by another student is rejected. Status stays unpaid until it is approved.</p>
+            <p class="eyebrow">Send a receipt</p>
+            <p class="muted">You can send more than one receipt. Each transfer is saved separately. A transaction ID or photo already used by another student is rejected.</p>
             <div class="form-grid">
+                <?php if ($progressList): ?>
+                <div class="form-group">
+                    <label class="req" for="payment_item_id">This payment is for</label>
+                    <select id="payment_item_id" name="payment_item_id" required>
+                        <option value="">Choose purpose</option>
+                        <?php foreach ($progressList as $progress): ?>
+                            <?php $item = $progress['item']; ?>
+                            <option value="<?= (int) $item['id'] ?>"><?= e($item['title']) ?><?= $progress['remaining'] !== null ? ' · remaining ' . format_etb($progress['remaining']) : '' ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <?php endif; ?>
                 <?php if ($accounts): ?>
                 <div class="form-group">
                     <label class="req" for="account_id">Account you paid</label>
@@ -153,17 +174,17 @@ student_header('Pay', 'payment', lead: 'Copy a class account, pay, then send the
                     </select>
                 </div>
                 <?php endif; ?>
-                <div class="form-group"><label for="amount">Amount (ETB)</label><input id="amount" type="text" name="amount" inputmode="decimal" autocomplete="off" value="<?= e($due) ?>" placeholder="0.00"></div>
+                <div class="form-group">
+                    <label class="req" for="amount">Amount paid (ETB)</label>
+                    <input id="amount" type="text" name="amount" inputmode="decimal" autocomplete="off" required placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label class="req" for="payment_date">Payment date</label>
+                    <input id="payment_date" type="date" name="payment_date" required max="<?= e($today) ?>" value="<?= e($today) ?>">
+                </div>
                 <div class="form-group">
                     <label class="req" for="reference">Reference / transaction ID</label>
                     <input id="reference" type="text" name="reference" autocomplete="off" maxlength="80" required placeholder="From your receipt">
-                </div>
-                <div class="form-group">
-                    <label for="claimed_status">This covers</label>
-                    <select id="claimed_status" name="claimed_status">
-                        <option value="paid">Full payment</option>
-                        <option value="partial">Partial payment</option>
-                    </select>
                 </div>
                 <div class="form-group full">
                     <label class="req" for="receipt">Receipt photo</label>
@@ -182,8 +203,71 @@ student_header('Pay', 'payment', lead: 'Copy a class account, pay, then send the
                 <button class="btn" type="submit">Send for verification</button>
             </div>
         </form>
-    <?php elseif ($student && $status !== 'paid'): ?>
+    <?php elseif ($student): ?>
         <p class="muted">Payment proof is sent from this page once the class office enables it.</p>
+    <?php endif; ?>
+
+    <?php if ($student): ?>
+        <section class="pay-history" aria-labelledby="pay-history-title">
+            <h2 id="pay-history-title">Payment history</h2>
+            <nav class="pay-history-tabs" aria-label="Payment status">
+                <?php
+                $historyTabs = [
+                    'all' => 'All',
+                    'pending' => 'Pending',
+                    'verified' => 'Verified',
+                    'rejected' => 'Rejected',
+                ];
+                foreach ($historyTabs as $key => $label):
+                    $href = url('student/payment.php' . ($key === 'all' ? '' : '?status=' . $key));
+                ?>
+                    <a href="<?= e($href) ?>" <?= $historyStatus === $key ? 'aria-current="page"' : '' ?>>
+                        <strong><?= (int) $historyCounts[$key] ?></strong>
+                        <span><?= e($label) ?></span>
+                    </a>
+                <?php endforeach; ?>
+            </nav>
+            <?php if (!$history): ?>
+                <p class="muted">No receipts in this list. Each payment you send appears here with its status.</p>
+            <?php else: ?>
+                <?php foreach ($historyGroups as $groupTitle => $groupRows): ?>
+                    <h3 class="pay-history-group"><?= e($groupTitle) ?></h3>
+                    <ul class="pay-history-list">
+                        <?php foreach ($groupRows as $row): ?>
+                            <?php
+                            $rowStatus = (string) ($row['status'] ?? 'pending');
+                            $ownReceipt = !empty($row['receipt_path']) ? payment_receipt_url((int) $row['id']) : '';
+                            ?>
+                            <li>
+                                <div>
+                                    <strong><?= e(format_etb($row['amount'] ?? null) ?: 'Amount not set') ?></strong>
+                                    <p class="muted">
+                                        <?= !empty($row['payment_date']) ? e(format_date((string) $row['payment_date'])) : e(format_when((string) ($row['created_at'] ?? ''))) ?>
+                                    </p>
+                                    <?php if ($rowStatus === 'rejected' && !empty($row['admin_note'])): ?>
+                                        <p class="muted"><?= e($row['admin_note']) ?></p>
+                                    <?php endif; ?>
+                                    <?php if ($ownReceipt !== ''): ?>
+                                        <p><a href="<?= e($ownReceipt) ?>" target="_blank" rel="noopener">View receipt</a></p>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="pay-history-side">
+                                    <span class="badge badge-<?= e($rowStatus) ?>"><?= e(status_label($rowStatus)) ?></span>
+                                    <?php if ($rowStatus === 'pending'): ?>
+                                        <form method="post">
+                                            <?= csrf_field() ?>
+                                            <input type="hidden" name="action" value="payment_cancel">
+                                            <input type="hidden" name="transaction_id" value="<?= (int) $row['id'] ?>">
+                                            <button class="btn btn-ghost btn-sm" type="submit">Withdraw</button>
+                                        </form>
+                                    <?php endif; ?>
+                                </div>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </section>
     <?php endif; ?>
 </article>
 

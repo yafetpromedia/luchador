@@ -20,8 +20,16 @@ function permission_catalog(): array
             'uniforms.edit' => 'Update uniform status',
         ],
         'Payments' => [
-            'payments.view' => 'View payments',
-            'payments.manage' => 'Publish accounts and approve payments',
+            'payments.view' => 'View payments and receipts',
+            'payments.create' => 'Create payment records',
+            'payments.edit' => 'Edit payment records',
+            'payments.verify' => 'Verify payment receipts',
+            'payments.reject' => 'Reject payment receipts',
+            'payments.delete' => 'Delete payment records',
+            'payments.export' => 'Export payments',
+            'payments.manage' => 'Full payment operations',
+            'payment_accounts.manage' => 'Manage payment accounts',
+            'payment_items.manage' => 'Manage payment items',
         ],
         'Calendar' => [
             'events.view' => 'View events',

@@ -53,6 +53,12 @@ function store_upload(array $file, string $folder, int $maxBytes = 5242880): arr
     if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
         return ['ok' => false, 'error' => 'Upload folder could not be created.'];
     }
+    if ($folder === 'payments') {
+        $deny = $dir . '/.htaccess';
+        if (!is_file($deny)) {
+            @file_put_contents($deny, "Require all denied\n");
+        }
+    }
 
     $name = bin2hex(random_bytes(16)) . '.' . $ext;
     $dest = $dir . '/' . $name;

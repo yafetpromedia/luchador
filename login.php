@@ -55,7 +55,7 @@ if (is_post()) {
     <title><?= e(t('auth.title')) ?> · <?= e(class_name()) ?></title>
     <link rel="icon" href="<?= e(url('assets/images/favicon.svg')) ?>" type="image/svg+xml">
     <?php site_font_links(); ?>
-    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=52">
+    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=59">
 </head>
 <body class="auth-body">
     <?php render_language_switcher('auth-lang'); ?>

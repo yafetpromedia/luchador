@@ -456,24 +456,26 @@ button:focus-visible,
 }
 .cover-motion-photo {
     position: absolute;
-    inset: -8%;
-    width: 116%;
-    height: 116%;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     object-fit: cover;
+    object-position: center 68%;
     opacity: 0.45;
     filter: grayscale(0.2) contrast(1.08);
+    transform-origin: center center;
     animation: cover-ken 32s ease-in-out infinite alternate;
 }
 .cover-motion-mark {
     position: absolute;
-    right: -2%;
-    bottom: -18%;
+    right: 5%;
+    bottom: 6%;
     z-index: 3;
     font-size: clamp(12rem, 36vw, 26rem);
     font-weight: 700;
     letter-spacing: -0.08em;
     line-height: 0.75;
-    color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.14);
     user-select: none;
     animation: cover-mark 12s ease-in-out infinite alternate;
 }
@@ -528,8 +530,8 @@ button:focus-visible,
     animation: cover-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.45s both;
 }
 @keyframes cover-ken {
-    from { transform: scale(1.05) translate3d(-2%, 0, 0); }
-    to { transform: scale(1.14) translate3d(2.5%, -2%, 0); }
+    from { transform: scale(1.12); }
+    to { transform: scale(1.22); }
 }
 @keyframes cover-drift-a {
     from { transform: translate3d(0, 0, 0) scale(1); }
@@ -873,8 +875,8 @@ body:not(.admin-body) .cover .btn-ghost:hover {
 
 .badge-upcoming, .badge-published, .badge-ready, .badge-public { color: var(--color-info); background: var(--color-info-bg); border-color: transparent; }
 .badge-ongoing, .badge-pending, .badge-partial, .badge-private { color: var(--color-warning); background: var(--color-warning-bg); border-color: transparent; }
-.badge-completed, .badge-collected, .badge-paid { color: var(--color-success); background: var(--color-success-bg); border-color: transparent; }
-.badge-cancelled, .badge-missing, .badge-unpaid, .badge-archived { color: var(--color-danger); background: var(--color-danger-bg); border-color: transparent; }
+.badge-completed, .badge-collected, .badge-paid, .badge-verified { color: var(--color-success); background: var(--color-success-bg); border-color: transparent; }
+.badge-cancelled, .badge-missing, .badge-unpaid, .badge-archived, .badge-rejected { color: var(--color-danger); background: var(--color-danger-bg); border-color: transparent; }
 .badge-ordered { color: var(--color-text-secondary); }
 
 .media-cover {
@@ -2807,6 +2809,37 @@ img.stu-avatar {
     margin-top: 0.25rem;
     font-size: 1.45rem;
 }
+.pay-progress-list {
+    display: grid;
+    gap: 0.75rem;
+    margin: 0 0 1.15rem;
+}
+.pay-progress-card {
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 1rem 1.05rem 0.95rem;
+}
+.pay-progress-card h2 { font-size: 1.05rem; margin: 0 0 0.35rem; }
+.pay-progress-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 1rem;
+    margin: 0.45rem 0 0.55rem;
+    font-size: 0.92rem;
+}
+.pay-bar {
+    height: 8px;
+    border-radius: 99px;
+    background: var(--color-surface-muted);
+    overflow: hidden;
+}
+.pay-bar span {
+    display: block;
+    height: 100%;
+    background: var(--color-text);
+    border-radius: 99px;
+}
 .pay-accounts { margin-top: 1.15rem; }
 .pay-accounts h2 { font-size: 1.05rem; margin: 0 0 0.35rem; }
 .pay-account-list {
@@ -2832,9 +2865,72 @@ img.stu-avatar {
     background: transparent;
     padding: 0;
 }
+.pay-history { margin-top: 1.35rem; }
+.pay-history h2 { font-size: 1.05rem; margin: 0 0 0.55rem; }
+.pay-history-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.45rem;
+    margin: 0 0 1rem;
+}
+.pay-history-tabs a {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    text-decoration: none;
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 0.7rem 0.75rem;
+    color: inherit;
+}
+.pay-history-tabs a strong {
+    font-size: 1.15rem;
+    letter-spacing: -0.03em;
+}
+.pay-history-tabs a span {
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+    font-weight: 650;
+}
+.pay-history-tabs a[aria-current="page"] {
+    background: #111113;
+    border-color: #111113;
+    color: #fafafa;
+}
+.pay-history-tabs a[aria-current="page"] span { color: #a1a1aa; }
+.pay-history-group {
+    font-size: 0.95rem;
+    margin: 1rem 0 0.45rem;
+}
+.pay-history-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.65rem;
+}
+.pay-history-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 0.9rem 1rem;
+}
+.pay-history-list li p { margin: 0.2rem 0 0; }
+.pay-history-side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.4rem;
+}
 
 @media (min-width: 720px) {
     .pay-account-list { grid-template-columns: 1fr 1fr; }
+    .pay-progress-list { grid-template-columns: 1fr 1fr; }
 }
 
 @keyframes stu-mark {

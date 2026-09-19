@@ -11,7 +11,7 @@ function admin_nav_groups(): array
         t('admin.group.class') => [
             'students' => ['label' => t('admin.students'), 'href' => 'admin/students.php', 'icon' => 'users', 'can' => ['students.view', 'students.create', 'students.edit']],
             'uniforms' => ['label' => t('admin.uniforms'), 'href' => 'admin/uniforms.php', 'icon' => 'shirt', 'can' => ['uniforms.view', 'uniforms.edit']],
-            'payments' => ['label' => t('admin.payments'), 'href' => 'admin/payments.php', 'icon' => 'wallet', 'can' => ['payments.view', 'payments.manage']],
+            'payments' => ['label' => t('admin.payments'), 'href' => 'admin/payments.php', 'icon' => 'wallet', 'can' => ['payments.view', 'payments.manage', 'payments.verify', 'payments.reject', 'payment_accounts.manage', 'payment_items.manage']],
         ],
         t('admin.group.content') => [
             'timeline' => ['label' => t('admin.journey'), 'href' => 'admin/timeline.php', 'icon' => 'route', 'can' => ['timeline.view', 'timeline.manage']],
@@ -44,9 +44,10 @@ function admin_nav_groups(): array
     ];
 }
 
-function admin_header(string $title, string $active = 'index'): void
+function admin_header(string $title, string $active = 'index', string $bodyClass = ''): void
 {
     $user = current_user();
+    $bodyClass = trim('admin-body ' . $bodyClass);
     ?>
 <!DOCTYPE html>
 <html lang="<?= e(current_lang()) ?>">
@@ -57,10 +58,10 @@ function admin_header(string $title, string $active = 'index'): void
     <title><?= e($title) ?> · <?= e(class_name()) ?> <?= e(t('admin.brand')) ?></title>
     <link rel="icon" href="<?= e(url('assets/images/favicon.svg')) ?>" type="image/svg+xml">
     <?php site_font_links(); ?>
-    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=52">
-    <link rel="stylesheet" href="<?= e(url('assets/css/admin.css')) ?>?v=39">
+    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=59">
+    <link rel="stylesheet" href="<?= e(url('assets/css/admin.css')) ?>?v=41">
 </head>
-<body class="admin-body">
+<body class="<?= e($bodyClass) ?>">
     <a class="skip-link" href="#main"><?= e(t('skip')) ?></a>
     <div class="admin-shell">
         <aside class="admin-sidebar" id="admin-sidebar" data-sidebar>
@@ -162,7 +163,7 @@ function admin_footer(): void
         </div>
     </div>
     <script src="<?= e(url('assets/js/app.js')) ?>?v=12"></script>
-    <script src="<?= e(url('assets/js/admin.js')) ?>?v=8"></script>
+    <script src="<?= e(url('assets/js/admin.js')) ?>?v=9"></script>
 </body>
 </html>
     <?php

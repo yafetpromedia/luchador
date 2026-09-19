@@ -114,16 +114,10 @@ function delete_student_record(int $id): bool
         }
         db()->prepare('DELETE FROM profile_requests WHERE student_id = ?')->execute([$id]);
     }
-    if (function_exists('cleanup_student_payments')) {
-        cleanup_student_payments($id);
-    } elseif (table_exists(db(), 'payment_requests')) {
-        $pays = db()->prepare('SELECT receipt FROM payment_requests WHERE student_id = ?');
-        $pays->execute([$id]);
-        foreach ($pays->fetchAll() as $row) {
-            delete_upload((string) ($row['receipt'] ?? ''));
-        }
-        db()->prepare('DELETE FROM payment_requests WHERE student_id = ?')->execute([$id]);
+    if (!function_exists('cleanup_student_payments')) {
+        require_once APP_ROOT . '/includes/payments.php';
     }
+    cleanup_student_payments($id);
     unlink_student_login($id);
     $stmt = db()->prepare('DELETE FROM uniforms WHERE id = ?');
     $stmt->execute([$id]);

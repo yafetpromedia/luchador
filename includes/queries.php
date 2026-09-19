@@ -669,7 +669,9 @@ function unpublished_counts(): array
         if (table_exists(db(), 'profile_requests')) {
             $counts['profile_requests'] = (int) db()->query("SELECT COUNT(*) FROM profile_requests WHERE status = 'pending'")->fetchColumn();
         }
-        if (table_exists(db(), 'payment_requests')) {
+        if (table_exists(db(), 'payment_transactions')) {
+            $counts['payment_requests'] = (int) db()->query("SELECT COUNT(*) FROM payment_transactions WHERE status = 'pending'")->fetchColumn();
+        } elseif (table_exists(db(), 'payment_requests')) {
             $counts['payment_requests'] = (int) db()->query("SELECT COUNT(*) FROM payment_requests WHERE status = 'pending'")->fetchColumn();
         }
         if (table_exists(db(), 'questions')) {

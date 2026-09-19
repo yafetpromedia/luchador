@@ -486,6 +486,40 @@
         updateBar();
     }
 
+    const payForm = document.getElementById('payment-select-form');
+    if (payForm) {
+        const countEl = payForm.querySelector('[data-selected-count]');
+        const pageCheck = document.querySelector('#verify [data-select-page-check]');
+        const buttons = () => Array.from(payForm.querySelectorAll('button[type="submit"]'));
+        const boxes = () => Array.from(document.querySelectorAll('input[name="ids[]"][data-payment-id]'));
+        const selected = () => boxes().filter((el) => el.checked);
+        const updateBar = () => {
+            const n = selected().length;
+            if (countEl) countEl.textContent = String(n);
+            buttons().forEach((btn) => {
+                btn.disabled = n === 0;
+            });
+            if (pageCheck) {
+                const all = boxes();
+                const checked = selected().length;
+                pageCheck.checked = all.length > 0 && checked === all.length;
+                pageCheck.indeterminate = checked > 0 && checked < all.length;
+            }
+        };
+        pageCheck?.addEventListener('change', () => {
+            boxes().forEach((el) => {
+                el.checked = pageCheck.checked;
+            });
+            updateBar();
+        });
+        document.addEventListener('change', (event) => {
+            if (event.target.closest?.('input[name="ids[]"][data-payment-id]')) {
+                updateBar();
+            }
+        });
+        updateBar();
+    }
+
     const reportForm = document.querySelector('[data-report-form]');
     reportForm?.addEventListener('change', (event) => {
         if (event.target.matches('[data-report-refresh]')) {

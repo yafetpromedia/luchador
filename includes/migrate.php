@@ -474,6 +474,161 @@ function migrate_payments(PDO $pdo): void
         'ALTER TABLE payment_requests ADD INDEX idx_payment_requests_receipt_hash (receipt_hash)'
     );
     backfill_payment_proof_keys($pdo);
+    migrate_payment_ledger($pdo);
+}
+
+function migrate_payment_ledger(PDO $pdo): void
+{
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS payment_items (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            title VARCHAR(160) NOT NULL,
+            description VARCHAR(600) NULL,
+            target_amount DECIMAL(12,2) NULL,
+            allow_partial_payment TINYINT(1) NOT NULL DEFAULT 1,
+            start_date DATE NULL,
+            end_date DATE NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'open',
+            visible_to_students TINYINT(1) NOT NULL DEFAULT 1,
+            created_by INT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_payment_items_visible (visible_to_students, status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS payment_transactions (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            student_id INT NOT NULL,
+            user_id INT NOT NULL,
+            payment_item_id INT NULL,
+            amount DECIMAL(12,2) NULL,
+            payment_date DATE NULL,
+            payment_method VARCHAR(40) NULL,
+            payment_account_id INT NULL,
+            account_label VARCHAR(180) NULL,
+            transaction_reference VARCHAR(80) NULL,
+            reference_key VARCHAR(80) NULL,
+            receipt_path VARCHAR(255) NULL,
+            receipt_hash CHAR(64) NULL,
+            student_note VARCHAR(255) NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'pending',
+            admin_note VARCHAR(255) NULL,
+            verified_by INT NULL,
+            verified_at DATETIME NULL,
+            rejected_by INT NULL,
+            rejected_at DATETIME NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_pay_tx_student (student_id, status),
+            INDEX idx_pay_tx_status (status),
+            INDEX idx_pay_tx_item (payment_item_id),
+            INDEX idx_pay_tx_reference (reference_key),
+            INDEX idx_pay_tx_receipt (receipt_hash)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+
+    add_column_if_missing($pdo, 'payment_accounts', 'phone_number', 'VARCHAR(40) NULL');
+    add_column_if_missing($pdo, 'payment_accounts', 'updated_at', 'TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP');
+    add_column_if_missing($pdo, 'payment_transactions', 'archived_by', 'INT NULL');
+    add_column_if_missing($pdo, 'payment_transactions', 'archived_at', 'DATETIME NULL');
+    add_index_if_missing(
+        $pdo,
+        'payment_transactions',
+        'idx_pay_tx_date',
+        'ALTER TABLE payment_transactions ADD INDEX idx_pay_tx_date (payment_date)'
+    );
+
+    $dir = APP_ROOT . '/uploads/payments';
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0755, true);
+    }
+    $deny = $dir . '/.htaccess';
+    if (is_dir($dir) && !is_file($deny)) {
+        @file_put_contents($deny, "Require all denied\n");
+    }
+
+    $itemCount = (int) $pdo->query('SELECT COUNT(*) FROM payment_items')->fetchColumn();
+    if ($itemCount === 0) {
+        $purpose = '';
+        $amount = '';
+        $instructions = '';
+        try {
+            $stmt = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('payment_purpose','payment_amount','payment_instructions')");
+            foreach ($stmt->fetchAll() as $row) {
+                $key = (string) ($row['setting_key'] ?? '');
+                $value = trim((string) ($row['setting_value'] ?? ''));
+                if ($key === 'payment_purpose') {
+                    $purpose = $value;
+                } elseif ($key === 'payment_amount') {
+                    $amount = $value;
+                } elseif ($key === 'payment_instructions') {
+                    $instructions = $value;
+                }
+            }
+        } catch (Throwable $e) {
+            $purpose = '';
+        }
+        if ($purpose !== '') {
+            $target = is_numeric(str_replace([',', ' '], '', $amount)) ? number_format((float) str_replace([',', ' '], '', $amount), 2, '.', '') : null;
+            $pdo->prepare(
+                'INSERT INTO payment_items (title, description, target_amount, allow_partial_payment, status, visible_to_students) VALUES (?,?,?,?,?,1)'
+            )->execute([
+                mb_substr($purpose, 0, 160),
+                $instructions !== '' ? mb_substr($instructions, 0, 600) : null,
+                $target,
+                1,
+                'open',
+            ]);
+        }
+    }
+
+    $txCount = (int) $pdo->query('SELECT COUNT(*) FROM payment_transactions')->fetchColumn();
+    if ($txCount === 0 && table_exists($pdo, 'payment_requests')) {
+        $rows = $pdo->query('SELECT * FROM payment_requests ORDER BY id ASC')->fetchAll();
+        $insert = $pdo->prepare(
+            'INSERT INTO payment_transactions
+                (student_id, user_id, payment_item_id, amount, payment_date, payment_method, payment_account_id, account_label, transaction_reference, reference_key, receipt_path, receipt_hash, student_note, status, admin_note, verified_by, verified_at, rejected_by, rejected_at, created_at)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+        );
+        $firstItemId = (int) $pdo->query('SELECT id FROM payment_items ORDER BY id ASC LIMIT 1')->fetchColumn();
+        $itemId = $firstItemId > 0 ? $firstItemId : null;
+        foreach ($rows as $row) {
+            $old = (string) ($row['status'] ?? 'pending');
+            $status = match ($old) {
+                'approved' => 'verified',
+                'rejected' => 'rejected',
+                'cancelled' => 'cancelled',
+                default => 'pending',
+            };
+            $created = (string) ($row['created_at'] ?? '');
+            $paymentDate = $created !== '' ? substr($created, 0, 10) : null;
+            $reviewedBy = (int) ($row['reviewed_by'] ?? 0) ?: null;
+            $reviewedAt = $row['reviewed_at'] ?? null;
+            $insert->execute([
+                (int) $row['student_id'],
+                (int) ($row['user_id'] ?? 0),
+                $itemId,
+                $row['amount'] ?? null,
+                $paymentDate,
+                'other',
+                (int) ($row['account_id'] ?? 0) ?: null,
+                $row['account_label'] ?? null,
+                $row['reference'] ?? null,
+                $row['reference_key'] ?? null,
+                $row['receipt'] ?? null,
+                $row['receipt_hash'] ?? null,
+                $row['student_note'] ?? null,
+                $status,
+                $row['note'] ?? null,
+                $status === 'verified' ? $reviewedBy : null,
+                $status === 'verified' ? $reviewedAt : null,
+                $status === 'rejected' ? $reviewedBy : null,
+                $status === 'rejected' ? $reviewedAt : null,
+                $created !== '' ? $created : date('Y-m-d H:i:s'),
+            ]);
+        }
+    }
 }
 
 function backfill_payment_proof_keys(PDO $pdo): void
@@ -716,6 +871,7 @@ function ensure_schema(): void
         migrate_student_profile($pdo);
         migrate_profile_requests($pdo);
         migrate_payments($pdo);
+        migrate_payment_ledger($pdo);
         migrate_notifications($pdo);
         migrate_interactions($pdo);
         migrate_class_brand($pdo);
