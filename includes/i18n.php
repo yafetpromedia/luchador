@@ -130,12 +130,20 @@ function render_language_switcher(string $extraClass = ''): void
     $class = 'lang-switch' . ($extraClass !== '' ? ' ' . $extraClass : '');
     echo '<details class="' . e($class) . '">';
     echo '<summary aria-label="' . e(t('lang.label')) . ': ' . e($meta['native']) . '">';
-    echo '<span>' . e($meta['short']) . '</span>';
+    echo icon('globe', 18);
     echo '</summary>';
-    echo '<div class="lang-switch-panel">';
+    echo '<div class="lang-switch-panel" role="menu">';
+    echo '<p class="lang-switch-title">' . e(t('lang.label')) . '</p>';
     foreach (supported_languages() as $code => $row) {
-        $active = $code === $current ? ' aria-current="true"' : '';
-        echo '<a href="' . e(language_url($code)) . '"' . $active . '>' . e($row['native']) . '</a>';
+        $active = $code === $current;
+        echo '<a role="menuitemradio" href="' . e(language_url($code)) . '" aria-checked="' . ($active ? 'true' : 'false') . '"' . ($active ? ' aria-current="true"' : '') . '>';
+        echo '<span class="lang-row-copy"><span>' . e($row['native']) . '</span>';
+        if ($row['native'] !== $row['name']) {
+            echo '<small>' . e($row['name']) . '</small>';
+        }
+        echo '</span>';
+        echo '<span class="lang-check">' . ($active ? icon('check', 16) : '') . '</span>';
+        echo '</a>';
     }
     echo '</div></details>';
 }

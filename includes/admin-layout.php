@@ -36,9 +36,9 @@ function admin_nav_groups(): array
             'activity' => ['label' => t('admin.activity'), 'href' => 'admin/activity.php', 'icon' => 'clock', 'can' => ['activity.view']],
         ],
         t('admin.group.system') => [
-            'users' => ['label' => t('admin.users'), 'href' => 'admin/users.php', 'icon' => 'lock', 'can' => ['users.manage']],
-            'roles' => ['label' => t('admin.roles'), 'href' => 'admin/roles.php', 'icon' => 'flag', 'can' => ['roles.manage']],
-            'student-accounts' => ['label' => t('admin.student_accounts'), 'href' => 'admin/student-accounts.php', 'icon' => 'users', 'can' => ['users.manage']],
+            'users' => ['label' => t('admin.users'), 'href' => 'admin/users.php', 'icon' => 'key', 'can' => ['users.manage']],
+            'roles' => ['label' => t('admin.roles'), 'href' => 'admin/roles.php', 'icon' => 'shield', 'can' => ['roles.manage']],
+            'student-accounts' => ['label' => t('admin.student_accounts'), 'href' => 'admin/student-accounts.php', 'icon' => 'id-card', 'can' => ['users.manage']],
             'settings' => ['label' => t('admin.settings'), 'href' => 'admin/settings.php', 'icon' => 'settings'],
         ],
     ];
@@ -57,7 +57,7 @@ function admin_header(string $title, string $active = 'index'): void
     <title><?= e($title) ?> · <?= e(class_name()) ?> <?= e(t('admin.brand')) ?></title>
     <link rel="icon" href="<?= e(url('assets/images/favicon.svg')) ?>" type="image/svg+xml">
     <?php site_font_links(); ?>
-    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=51">
+    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=52">
     <link rel="stylesheet" href="<?= e(url('assets/css/admin.css')) ?>?v=39">
 </head>
 <body class="admin-body">

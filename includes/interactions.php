@@ -184,7 +184,7 @@ function poll_open_notice(array $poll): array
         'type' => $decision ? 'decision.open' : 'poll.open',
         'title' => $decision ? 'Class decision' : 'New class poll',
         'body' => $title,
-        'icon' => $decision ? 'flag' : 'bar-chart',
+        'icon' => $decision ? 'gavel' : 'bar-chart',
         'url' => 'student/poll.php?id=' . $id,
         'target_type' => 'poll',
         'target_id' => $id,

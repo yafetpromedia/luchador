@@ -2913,11 +2913,11 @@ img.stu-avatar {
     position: relative;
     display: grid;
     place-items: center;
-    width: 40px;
-    height: 40px;
-    border: 1px solid var(--color-border-strong);
-    background: var(--color-surface);
-    border-radius: var(--radius-sm);
+    width: 36px;
+    height: 36px;
+    border: 0;
+    background: rgba(22, 21, 26, 0.06);
+    border-radius: 999px;
     color: var(--color-text);
     cursor: pointer;
 }
@@ -3000,8 +3000,7 @@ img.stu-avatar {
 }
 .notif-item.is-read .notif-item-title { font-weight: 500; color: var(--color-text-secondary); }
 .onepage .notif-toggle {
-    background: #18181b;
-    border-color: #3f3f46;
+    background: rgba(255, 255, 255, 0.1);
     color: #fafafa;
 }
 .header-inner .notif-bell,
@@ -3018,60 +3017,96 @@ img.stu-avatar {
     list-style: none;
     display: grid;
     place-items: center;
-    min-width: 40px;
-    height: 40px;
-    padding: 0 0.55rem;
-    border: 1px solid var(--color-border-strong);
-    background: var(--color-surface);
-    border-radius: var(--radius-sm);
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 0;
+    background: rgba(22, 21, 26, 0.06);
+    border-radius: 999px;
     cursor: pointer;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
     color: var(--color-text);
     user-select: none;
 }
 .lang-switch > summary::-webkit-details-marker,
 .lang-switch > summary::marker { display: none; }
-.lang-switch[open] > summary { background: var(--color-surface-muted); }
+.lang-switch[open] > summary { background: rgba(22, 21, 26, 0.12); }
 .lang-switch-panel {
     position: absolute;
     right: 0;
-    top: calc(100% + 0.45rem);
-    min-width: 9.75rem;
-    background: #fff;
-    border: 1px solid var(--color-border);
-    border-radius: 12px;
-    box-shadow: var(--shadow-md);
+    top: calc(100% + 0.5rem);
+    min-width: 15.5rem;
+    padding: 0.4rem;
+    background: rgba(255, 255, 255, 0.82);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    backdrop-filter: blur(28px) saturate(180%);
+    border: 0;
+    border-radius: 14px;
+    box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 12px 40px rgba(0, 0, 0, 0.18);
     z-index: 80;
-    padding: 0.35rem;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Noto Sans Ethiopic", sans-serif;
+    color: #1d1d1f;
+    color-scheme: light;
+}
+.lang-switch-title {
+    margin: 0;
+    padding: 0.4rem 0.7rem 0.3rem;
+    font-size: 0.68rem;
+    font-weight: 650;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #6e6e73;
+}
+html[lang="am"] .lang-switch-title {
+    letter-spacing: 0;
+    text-transform: none;
 }
 .lang-switch-panel a {
-    display: block;
-    padding: 0.5rem 0.65rem;
-    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 40px;
+    padding: 0.4rem 0.65rem;
+    border-radius: 10px;
     text-decoration: none;
-    color: var(--color-text);
-    font-size: 0.86rem;
-    font-weight: 600;
+    color: #1d1d1f;
+    font-size: 0.94rem;
+    font-weight: 500;
 }
-.lang-switch-panel a:hover { background: var(--color-surface-muted); }
-.lang-switch-panel a[aria-current="true"] { background: var(--color-surface-muted); }
+.lang-switch-panel a:hover { background: rgba(0, 0, 0, 0.05); }
+.lang-switch-panel a[aria-current="true"] { background: rgba(0, 122, 255, 0.1); }
+.lang-row-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    flex: 1;
+    min-width: 0;
+    line-height: 1.2;
+}
+.lang-row-copy small {
+    color: #6e6e73;
+    font-size: 0.75rem;
+    font-weight: 400;
+}
+.lang-check {
+    width: 1.1rem;
+    color: #007aff;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+}
 .onepage .lang-switch > summary,
 .auth-body .lang-switch > summary {
-    background: #18181b;
-    border-color: #3f3f46;
+    background: rgba(255, 255, 255, 0.1);
     color: #fafafa;
 }
 .onepage .lang-switch[open] > summary,
-.auth-body .lang-switch[open] > summary { background: #27272a; }
+.auth-body .lang-switch[open] > summary { background: rgba(255, 255, 255, 0.18); }
 .auth-lang {
     position: fixed;
     top: max(1rem, env(safe-area-inset-top));
     right: max(1rem, env(safe-area-inset-right));
     z-index: 20;
 }
-.auth-lang .lang-switch-panel { color: var(--color-text); color-scheme: light; }
 
 html[lang="am"] h1,
 html[lang="am"] h2,
@@ -3128,7 +3163,8 @@ html[lang="am"] .brand-text span {
 }
 
 @media (max-width: 720px) {
-    .notif-toggle {
+    .notif-toggle,
+    .lang-switch > summary {
         width: 44px;
         height: 44px;
     }
