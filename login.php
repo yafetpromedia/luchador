@@ -16,7 +16,7 @@ $next = safe_redirect_path($requested, 'admin/index.php');
 if (is_post()) {
     require_csrf();
     if (login_is_locked()) {
-        $error = 'Too many attempts. Please wait and try again.';
+        $error = t('auth.locked');
     } else {
         try {
             $user = authenticate_credentials(posted('username'), (string) ($_POST['password'] ?? ''));
@@ -37,27 +37,28 @@ if (is_post()) {
             redirect(post_login_path($user, $requested));
         } catch (RuntimeException $e) {
             if ($e->getMessage() === 'disabled') {
-                $error = 'This account is currently disabled. Please contact the class administrator.';
+                $error = t('auth.disabled');
             } elseif ($e->getMessage() === 'not_found') {
-                $error = 'No class account matches that username. Use the exact username on your slip, or your full name.';
+                $error = t('auth.not_found');
             } else {
-                $error = 'That password does not match this account. Check the slip, or ask an administrator to reset it.';
+                $error = t('auth.invalid');
             }
         }
     }
 }
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<?= e(current_lang()) ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign in · <?= e(class_name()) ?></title>
+    <title><?= e(t('auth.title')) ?> · <?= e(class_name()) ?></title>
     <link rel="icon" href="<?= e(url('assets/images/favicon.svg')) ?>" type="image/svg+xml">
     <?php site_font_links(); ?>
-    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=49">
+    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=51">
 </head>
 <body class="auth-body">
+    <?php render_language_switcher('auth-lang'); ?>
     <div class="auth-motion" aria-hidden="true">
         <span class="auth-mark"><?= e(class_grade()) ?></span>
         <span class="auth-glow auth-glow-a"></span>
@@ -68,15 +69,15 @@ if (is_post()) {
             <a class="brand" href="<?= e(url('index.php')) ?>">
                 <span class="brand-text">
                     <strong><?= e(class_name()) ?></strong>
-                    <span>Grade <?= e(class_grade()) ?></span>
+                    <span><?= e(t('grade', ['grade' => class_grade()])) ?></span>
                 </span>
             </a>
             <p class="auth-kicker"><?= e(school_name()) ?></p>
-            <h1>Welcome back.</h1>
-            <p class="auth-lede">Sign in to the Grade <?= e(class_grade()) ?> class portal.</p>
+            <h1><?= e(t('auth.welcome')) ?></h1>
+            <p class="auth-lede"><?= e(t('auth.lede', ['grade' => class_grade()])) ?></p>
         </section>
         <section class="auth-card">
-            <h2>Sign in</h2>
+            <h2><?= e(t('auth.title')) ?></h2>
             <?php if ($error): ?>
                 <div class="alert alert-error" role="alert"><?= e($error) ?></div>
             <?php endif; ?>
@@ -84,28 +85,28 @@ if (is_post()) {
                 <?= csrf_field() ?>
                 <input type="hidden" name="next" value="<?= e($next) ?>">
                 <div class="form-group">
-                    <label for="username">Username or student ID</label>
-                    <input id="username" name="username" type="text" autocomplete="username" autocapitalize="off" spellcheck="false" required autofocus placeholder="Username, student ID, or full name" value="<?= e(is_post() ? posted('username') : '') ?>">
+                    <label for="username"><?= e(t('auth.username')) ?></label>
+                    <input id="username" name="username" type="text" autocomplete="username" autocapitalize="off" spellcheck="false" required autofocus placeholder="<?= e(t('auth.username_ph')) ?>" value="<?= e(is_post() ? posted('username') : '') ?>">
                 </div>
                 <div class="form-group">
-                    <label for="password">Password</label>
+                    <label for="password"><?= e(t('auth.password')) ?></label>
                     <div class="password-field">
                         <input id="password" name="password" type="password" autocomplete="current-password" required>
-                        <button type="button" class="password-toggle" data-password-toggle aria-controls="password" aria-pressed="false" aria-label="Show password">
+                        <button type="button" class="password-toggle" data-password-toggle aria-controls="password" aria-pressed="false" aria-label="<?= e(t('auth.show_password')) ?>">
                             <span data-show><?= icon('eye', 18) ?></span>
                             <span data-hide hidden><?= icon('eye-off', 18) ?></span>
                         </button>
                     </div>
                 </div>
-                <button class="btn auth-submit" type="submit">Sign in</button>
+                <button class="btn auth-submit" type="submit"><?= e(t('auth.submit')) ?></button>
             </form>
-            <p class="auth-hint">Use your username, student ID, or full name, plus the password from the class administrator. If you never received a login, you are on the roster but do not have an account yet.</p>
+            <p class="auth-hint"><?= e(t('auth.hint')) ?></p>
             <?php if (!app_is_production()): ?>
-                <p class="auth-hint">This is the local copy. Printed student slips sign in at <a href="https://luchador.yafetpromedia.com/login.php">luchador.yafetpromedia.com/login.php</a>.</p>
+                <p class="auth-hint"><?= e(t('auth.local_copy')) ?> <a href="https://luchador.yafetpromedia.com/login.php">luchador.yafetpromedia.com/login.php</a>.</p>
             <?php endif; ?>
-            <p><a class="text-link" href="<?= e(url('index.php')) ?>">Back to the class <?= icon('arrow-right', 16) ?></a></p>
+            <p><a class="text-link" href="<?= e(url('index.php')) ?>"><?= e(t('auth.back')) ?> <?= icon('arrow-right', 16) ?></a></p>
         </section>
     </main>
-    <script src="<?= e(url('assets/js/app.js')) ?>?v=9"></script>
+    <script src="<?= e(url('assets/js/app.js')) ?>?v=12"></script>
 </body>
 </html>

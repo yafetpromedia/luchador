@@ -320,17 +320,21 @@ function render_notification_bell(string $portal): void
     $countText = $unread > 99 ? '99+' : (string) $unread;
     $json = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?: '{}';
 
-    echo '<div class="notif-bell" data-notifications data-portal="' . e($portal) . '">';
-    echo '<button type="button" class="notif-toggle" aria-expanded="false" aria-controls="' . e($panelId) . '" aria-label="Notifications">';
+    $label = $unread > 0 ? t('notif.label_unread', ['n' => $countText]) : t('notif.label');
+    $empty = t('notif.empty');
+    $markAll = t('notif.mark_all');
+
+    echo '<div class="notif-bell" data-notifications data-portal="' . e($portal) . '" data-empty="' . e($empty) . '" data-label="' . e(t('notif.label')) . '" data-unread="' . e(t('notif.label_unread')) . '">';
+    echo '<button type="button" class="notif-toggle" aria-expanded="false" aria-controls="' . e($panelId) . '" aria-label="' . e($label) . '">';
     echo icon('bell', 18);
     echo '<span class="notif-count"' . $countHidden . '>' . e($countText) . '</span>';
     echo '</button>';
     echo '<div class="notif-panel" id="' . e($panelId) . '" hidden>';
-    echo '<div class="notif-head"><strong>Notifications</strong>';
-    echo '<button type="button" class="notif-read-all" data-notif-read-all>Mark all read</button></div>';
+    echo '<div class="notif-head"><strong>' . e(t('notif.title')) . '</strong>';
+    echo '<button type="button" class="notif-read-all" data-notif-read-all>' . e($markAll) . '</button></div>';
     echo '<div class="notif-list" data-notif-list>';
     if (empty($payload['items'])) {
-        echo '<p class="notif-empty">No notifications yet.</p>';
+        echo '<p class="notif-empty">' . e($empty) . '</p>';
     } else {
         foreach ($payload['items'] as $item) {
             $href = $item['url'] !== '' ? $item['url'] : '#';

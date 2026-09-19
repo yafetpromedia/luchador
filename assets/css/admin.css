@@ -526,6 +526,55 @@
 
 .perm-wrap { margin-top: 1.15rem; }
 .perm-wrap > h3 { font-size: 1.02rem; margin-bottom: 0.35rem; }
+
+.picker-list {
+    max-height: 280px;
+    overflow: auto;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-surface);
+}
+.picker-option {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.72rem 0.95rem;
+    border: 0;
+    border-bottom: 1px solid var(--color-border);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.picker-option:last-child { border-bottom: 0; }
+.picker-option:hover,
+.picker-option.is-active { background: var(--color-surface-muted); }
+.picker-option strong { font-weight: 600; letter-spacing: -0.02em; }
+.picker-option span { color: var(--color-text-muted); font-size: 0.8rem; }
+.picker-choice {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border-radius: 12px;
+    background: var(--color-surface-muted);
+}
+.picker-choice span {
+    display: block;
+    color: var(--color-text-muted);
+    font-size: 0.72rem;
+    margin-bottom: 0.15rem;
+}
+.picker-choice strong { font-size: 1rem; letter-spacing: -0.02em; }
+.picker-choice[hidden],
+.picker-list[hidden],
+.picker-empty[hidden],
+.picker-option[hidden],
+[data-picker-search][hidden] { display: none !important; }
 .perm-group {
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
@@ -616,6 +665,7 @@
     .user-table { display: none; }
     .user-card-list { display: grid; gap: 0.75rem; }
     .student-hero-grid { grid-template-columns: 1fr; }
+    .admin-topbar .account-menu { display: none; }
 }
 .perm-list {
     display: grid;

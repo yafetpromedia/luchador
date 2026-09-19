@@ -112,7 +112,8 @@ if (is_post()) {
 }
 
 $stats = student_account_stats();
-$without = students_without_accounts(12);
+$unlinked = students_without_accounts();
+$without = array_slice($unlinked, 0, 12);
 $credentials = one_time_credentials();
 if (request_str('print') === '1') {
     if (!$credentials || empty($credentials['rows'])) {
@@ -130,7 +131,12 @@ $accounts = db()->query(
 )->fetchAll();
 
 admin_header('Student accounts', 'student-accounts');
-admin_page_head('Create logins, then print slips to hand each student a username and temporary password. This never adds, edits, or deletes student records.');
+admin_page_head(
+    'Pick a student from the class roster, create their login, then print the slip. This never adds or deletes student records. Committee logins are created separately.',
+    [
+        '<a class="btn btn-ghost" href="' . e(url('admin/users.php')) . '">Committee logins</a>',
+    ]
+);
 ?>
 
 <?php if ($credentials): ?>
@@ -198,22 +204,46 @@ admin_page_head('Create logins, then print slips to hand each student a username
 
 <section class="panel">
     <h2>Create one account</h2>
-    <form method="post">
+    <p class="muted">Search the roster, click the student, then create their login. Only students without an account are listed.</p>
+    <?php if (!$unlinked): ?>
+        <p>Every student on the roster already has a login.</p>
+    <?php else: ?>
+    <form method="post" data-student-picker>
         <?= csrf_field() ?>
         <input type="hidden" name="action" value="create_one">
-        <div class="form-group">
-            <label>Student without an account</label>
-            <select name="student_id" required>
-                <option value="">Select</option>
-                <?php foreach (students_without_accounts() as $row): ?>
-                    <option value="<?= (int) $row['id'] ?>"><?= e($row['student_name']) ?><?= !empty($row['student_code']) ? ' · ' . e($row['student_code']) : '' ?></option>
-                <?php endforeach; ?>
-            </select>
+        <input type="hidden" name="student_id" data-picker-id value="">
+        <div class="form-group" data-picker-search>
+            <label for="student-picker-q">Find a student</label>
+            <input type="search" id="student-picker-q" data-picker-q placeholder="Type a name or student ID" autocomplete="off">
         </div>
+        <div class="picker-choice" data-picker-choice hidden>
+            <div>
+                <span>Selected</span>
+                <strong data-picker-name></strong>
+            </div>
+            <button class="btn btn-ghost btn-sm" type="button" data-picker-clear>Change</button>
+        </div>
+        <div class="picker-list" data-picker-list role="listbox" aria-label="Students without an account">
+            <?php foreach ($unlinked as $row): ?>
+                <button
+                    type="button"
+                    class="picker-option"
+                    role="option"
+                    data-id="<?= (int) $row['id'] ?>"
+                    data-name="<?= e($row['student_name']) ?>"
+                    data-search="<?= e(strtolower(trim($row['student_name'] . ' ' . ($row['student_code'] ?? '')))) ?>"
+                >
+                    <strong><?= e($row['student_name']) ?></strong>
+                    <span><?= e($row['student_code'] ?: 'No student ID') ?></span>
+                </button>
+            <?php endforeach; ?>
+        </div>
+        <p class="picker-empty muted" data-picker-empty hidden>No matching students without an account.</p>
         <div class="form-actions" style="margin-top:1rem">
-            <button class="btn" type="submit">Create account</button>
+            <button class="btn" type="submit" data-picker-submit disabled>Create account</button>
         </div>
     </form>
+    <?php endif; ?>
 </section>
 
 <div class="table-wrap user-table">
@@ -231,7 +261,6 @@ admin_page_head('Create logins, then print slips to hand each student a username
             <td><?= admin_active_badge($row['is_active'] ?? 0) ?><?= !empty($row['must_change_password']) ? ' <span class="badge">Temporary password</span>' : '' ?></td>
             <td><?= $row['last_login_at'] ? e(format_when($row['last_login_at'])) : 'Never' ?></td>
             <td class="row-actions">
-                <a class="btn btn-sm btn-ghost" href="<?= e(url('admin/users.php?edit=' . (int) $row['id'])) ?>">Edit</a>
                 <form method="post">
                     <?= csrf_field() ?>
                     <input type="hidden" name="id" value="<?= (int) $row['id'] ?>">
@@ -250,4 +279,56 @@ admin_page_head('Create logins, then print slips to hand each student a username
     </tbody>
 </table>
 </div>
+<script>
+(function () {
+    const root = document.querySelector('[data-student-picker]');
+    if (!root) return;
+    const q = root.querySelector('[data-picker-q]');
+    const search = root.querySelector('[data-picker-search]');
+    const list = root.querySelector('[data-picker-list]');
+    const empty = root.querySelector('[data-picker-empty]');
+    const choice = root.querySelector('[data-picker-choice]');
+    const nameEl = root.querySelector('[data-picker-name]');
+    const idEl = root.querySelector('[data-picker-id]');
+    const submit = root.querySelector('[data-picker-submit]');
+    const options = Array.from(root.querySelectorAll('.picker-option'));
+
+    const setSelected = (id, name) => {
+        idEl.value = id || '';
+        if (nameEl) nameEl.textContent = name || '';
+        const has = id !== '';
+        if (choice) choice.hidden = !has;
+        if (list) list.hidden = has;
+        if (search) search.hidden = has;
+        if (q && !has) q.focus();
+        if (submit) submit.disabled = !has;
+        options.forEach((opt) => opt.classList.toggle('is-active', opt.dataset.id === id));
+    };
+
+    const filter = () => {
+        const term = (q.value || '').trim().toLowerCase();
+        let shown = 0;
+        options.forEach((opt) => {
+            const match = term === '' || (opt.dataset.search || '').includes(term);
+            opt.hidden = !match;
+            if (match) shown += 1;
+        });
+        if (empty) empty.hidden = shown > 0;
+        if (list) list.hidden = shown === 0;
+    };
+
+    options.forEach((opt) => {
+        opt.addEventListener('click', () => {
+            setSelected(opt.dataset.id || '', opt.dataset.name || '');
+        });
+    });
+    if (q) q.addEventListener('input', filter);
+    root.querySelector('[data-picker-clear]')?.addEventListener('click', () => {
+        if (q) q.value = '';
+        setSelected('', '');
+        filter();
+    });
+    filter();
+})();
+</script>
 <?php admin_footer(); ?>

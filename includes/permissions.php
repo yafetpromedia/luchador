@@ -194,6 +194,22 @@ function user_roles(): array
     return $roles;
 }
 
+function staff_roles(): array
+{
+    $roles = user_roles();
+    unset($roles['student']);
+    return $roles;
+}
+
+function assignable_staff_roles(): array
+{
+    $roles = staff_roles();
+    if (!is_super_admin()) {
+        unset($roles['super_admin']);
+    }
+    return $roles;
+}
+
 function system_role_slugs(): array
 {
     return ['super_admin', 'committee', 'student'];

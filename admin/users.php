@@ -18,6 +18,12 @@ if ($editId) {
 if ($viewId) {
     $view = fetch_user_by_id($viewId);
 }
+if ($edit && ($edit['role'] ?? '') === 'student') {
+    redirect('admin/student-accounts.php');
+}
+if ($view && ($view['role'] ?? '') === 'student') {
+    redirect('admin/student-accounts.php');
+}
 
 if (is_post()) {
     require_csrf();
@@ -76,7 +82,6 @@ if (is_post()) {
         $role = posted('role');
         $active = posted('is_active') === '1' || !$target;
         $password = (string) ($_POST['password'] ?? '');
-        $studentId = posted('student_id') !== '' ? (int) posted('student_id') : 0;
 
         if ($fullName === '' || $username === '') {
             throw new InvalidArgumentException('Full name and username are required.');
@@ -87,8 +92,11 @@ if (is_post()) {
         if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             throw new InvalidArgumentException('Enter a valid email, or leave it blank.');
         }
-        if (!array_key_exists($role, user_roles())) {
+        if (!array_key_exists($role, assignable_staff_roles())) {
             $role = 'committee';
+        }
+        if ($role === 'student') {
+            throw new InvalidArgumentException('Create student logins from Student accounts.');
         }
         if ($role === 'super_admin' && !is_super_admin()) {
             throw new InvalidArgumentException('Only a Super Admin can assign that role.');
@@ -106,6 +114,9 @@ if (is_post()) {
         if (username_taken($username, $id)) {
             throw new InvalidArgumentException('That username is already in use.');
         }
+        if ($target && ($target['role'] ?? '') === 'student') {
+            throw new InvalidArgumentException('Student logins are managed on Student accounts.');
+        }
         if ($email !== '') {
             $dupEmail = db()->prepare('SELECT id FROM users WHERE email = ? AND id != ? LIMIT 1');
             $dupEmail->execute([$email, $id]);
@@ -114,33 +125,16 @@ if (is_post()) {
             }
         }
 
-        if ($role === 'student') {
-            if ($studentId <= 0) {
-                throw new InvalidArgumentException('Link a student record for student accounts.');
-            }
-            $record = student_by_id($studentId);
-            if (!$record) {
-                throw new InvalidArgumentException('That student record was not found.');
-            }
-            $taken = student_account_id($studentId);
-            if ($taken && $taken !== $id) {
-                throw new InvalidArgumentException('That student already has an account.');
-            }
-        } else {
-            $studentId = 0;
-        }
-
         $permissions = sanitize_permission_list(is_array($_POST['permissions'] ?? null) ? $_POST['permissions'] : [], $role);
 
         if ($id) {
-            db()->prepare('UPDATE users SET full_name=?, username=?, email=?, role=?, is_active=?, student_id=? WHERE id=?')
+            db()->prepare('UPDATE users SET full_name=?, username=?, email=?, role=?, is_active=?, student_id=NULL WHERE id=?')
                 ->execute([
                     $fullName,
                     $username,
                     $email !== '' ? $email : null,
                     $role,
                     $active ? 1 : 0,
-                    $studentId > 0 ? $studentId : null,
                     $id,
                 ]);
             if ($password !== '') {
@@ -159,13 +153,13 @@ if (is_post()) {
                 set_one_time_credentials([[
                     'username' => $username,
                     'full_name' => $fullName,
-                    'student_code' => $role === 'student' ? (string) (($record['student_code'] ?? '')) : '',
+                    'student_code' => '',
                     'password' => $password,
                 ]], 'Account created. Copy the temporary password now — it will not be stored.');
             } elseif (strlen($password) < password_min_length()) {
                 throw new InvalidArgumentException('Temporary passwords must be at least ' . password_min_length() . ' characters.');
             }
-            db()->prepare('INSERT INTO users (username, password, must_change_password, full_name, email, role, is_active, student_id) VALUES (?,?,1,?,?,?,?,?)')
+            db()->prepare('INSERT INTO users (username, password, must_change_password, full_name, email, role, is_active, student_id) VALUES (?,?,1,?,?,?,?,NULL)')
                 ->execute([
                     $username,
                     password_hash($password, PASSWORD_DEFAULT),
@@ -173,7 +167,6 @@ if (is_post()) {
                     $email !== '' ? $email : null,
                     $role,
                     1,
-                    $studentId > 0 ? $studentId : null,
                 ]);
             $newId = (int) db()->lastInsertId();
             save_user_permissions($newId, $role === 'committee' ? $permissions : []);
@@ -192,18 +185,16 @@ if (is_post()) {
 $q = request_str('q');
 $roleFilter = request_str('role');
 $statusFilter = request_str('status');
-$sql = 'SELECT u.id, u.username, u.full_name, u.email, u.role, u.is_active, u.last_login_at, u.created_at, u.student_id, u.must_change_password,
-               s.student_name, s.student_code
+$sql = 'SELECT u.id, u.username, u.full_name, u.email, u.role, u.is_active, u.last_login_at, u.created_at, u.must_change_password
         FROM users u
-        LEFT JOIN uniforms s ON s.id = u.student_id
-        WHERE 1=1';
+        WHERE u.role != \'student\'';
 $params = [];
 if ($q !== '') {
-    $sql .= ' AND (u.full_name LIKE ? OR u.username LIKE ? OR s.student_name LIKE ? OR s.student_code LIKE ?)';
+    $sql .= ' AND (u.full_name LIKE ? OR u.username LIKE ?)';
     $like = '%' . $q . '%';
-    array_push($params, $like, $like, $like, $like);
+    array_push($params, $like, $like);
 }
-if ($roleFilter !== '' && array_key_exists($roleFilter, user_roles())) {
+if ($roleFilter !== '' && array_key_exists($roleFilter, staff_roles())) {
     $sql .= ' AND u.role = ?';
     $params[] = $roleFilter;
 }
@@ -220,20 +211,13 @@ $users = $stmt->fetchAll();
 $editPerms = $edit && $edit['role'] === 'committee'
     ? user_permissions_for((int) $edit['id'], 'committee')
     : default_committee_permissions();
-$unlinked = students_without_accounts();
-if ($edit && !empty($edit['student_id'])) {
-    $currentStudent = student_by_id((int) $edit['student_id']);
-    if ($currentStudent) {
-        array_unshift($unlinked, $currentStudent);
-    }
-}
 $credentials = one_time_credentials();
 
-admin_header($edit ? 'Edit user' : ($view ? 'User' : 'Users'), 'users');
+admin_header($edit ? 'Edit committee login' : ($view ? 'Committee login' : 'Committee logins'), 'users');
 admin_page_head(
-    'Create committee and student logins. Student accounts link to existing class records — they do not create new students.',
+    'Create committee and Super Admin logins here. Student logins are created separately: pick a student on Student accounts, then print their slip.',
     [
-        '<a class="btn btn-ghost" href="' . e(url('admin/student-accounts.php')) . '">Generate student accounts</a>',
+        '<a class="btn" href="' . e(url('admin/student-accounts.php')) . '">Student accounts</a>',
         '<a class="btn btn-ghost" href="' . e(url('admin/roles.php')) . '">Roles</a>',
     ]
 );
@@ -273,14 +257,6 @@ admin_page_head(
         <div><dt>Role</dt><dd><?= e(role_label((string) $view['role'])) ?></dd></div>
         <div><dt>Status</dt><dd><?= admin_active_badge($view['is_active'] ?? 0) ?></dd></div>
         <div><dt>Last login</dt><dd><?= $view['last_login_at'] ? e(format_when($view['last_login_at'])) : 'Never' ?></dd></div>
-        <div><dt>Linked student</dt><dd><?php
-            if (!empty($view['student_id'])) {
-                $linked = student_by_id((int) $view['student_id']);
-                echo e($linked ? ($linked['student_name'] . ' · ' . ($linked['student_code'] ?: 'ID ' . $linked['id'])) : 'Missing record');
-            } else {
-                echo 'None';
-            }
-        ?></dd></div>
     </dl>
     <div class="form-actions" style="margin-top:1rem">
         <a class="btn" href="?edit=<?= (int) $view['id'] ?>">Edit</a>
@@ -290,7 +266,7 @@ admin_page_head(
 <?php endif; ?>
 
 <div class="panel">
-    <h2><?= $edit ? 'Update user' : 'Add user' ?></h2>
+    <h2><?= $edit ? 'Update committee login' : 'Add committee login' ?></h2>
     <form method="post" data-loading>
         <?= csrf_field() ?>
         <input type="hidden" name="id" value="<?= e((string) ($edit['id'] ?? '')) ?>">
@@ -301,7 +277,7 @@ admin_page_head(
             <div class="form-group">
                 <label>Role</label>
                 <select name="role" id="user-role">
-                    <?php foreach (user_roles() as $key => $label): ?>
+                    <?php foreach (assignable_staff_roles() as $key => $label): ?>
                         <option value="<?= e($key) ?>" <?= (($edit['role'] ?? 'committee') === $key) ? 'selected' : '' ?>><?= e($label) ?></option>
                     <?php endforeach; ?>
                 </select>
@@ -316,19 +292,6 @@ admin_page_head(
                 <label class="check"><input type="checkbox" name="is_active" value="1" <?= !empty($edit['is_active']) ? 'checked' : '' ?>> Active</label>
             </div>
             <?php endif; ?>
-            <div class="form-group full" id="student-link">
-                <label>Linked student</label>
-                <input type="search" id="student-filter" placeholder="Filter students" autocomplete="off">
-                <select name="student_id" id="student-id" size="8">
-                    <option value="">Select a student</option>
-                    <?php foreach ($unlinked as $row): ?>
-                        <option value="<?= (int) $row['id'] ?>" <?= !empty($edit['student_id']) && (int) $edit['student_id'] === (int) $row['id'] ? 'selected' : '' ?>>
-                            <?= e($row['student_name']) ?><?= !empty($row['student_code']) ? ' · ' . e($row['student_code']) : '' ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                <p class="muted">Only students without an account are listed. One student can have one account.</p>
-            </div>
         </div>
 
         <div id="permission-fields" class="perm-wrap">
@@ -351,7 +314,7 @@ admin_page_head(
         </div>
 
         <div class="form-actions" style="margin-top:1rem">
-            <button class="btn" type="submit"><?= $edit ? 'Save user' : 'Create account' ?></button>
+            <button class="btn" type="submit"><?= $edit ? 'Save login' : 'Create login' ?></button>
             <?php if ($edit): ?><a class="btn btn-ghost" href="<?= e(url('admin/users.php')) ?>">Cancel</a><?php endif; ?>
         </div>
     </form>
@@ -371,7 +334,7 @@ admin_page_head(
         <label>Role</label>
         <select name="role">
             <option value="">All roles</option>
-            <?php foreach (user_roles() as $key => $label): ?>
+            <?php foreach (staff_roles() as $key => $label): ?>
                 <option value="<?= e($key) ?>" <?= $roleFilter === $key ? 'selected' : '' ?>><?= e($label) ?></option>
             <?php endforeach; ?>
         </select>
@@ -389,17 +352,16 @@ admin_page_head(
 
 <div class="table-wrap user-table">
 <table>
-    <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Linked student</th><th>Status</th><th>Last login</th><th></th></tr></thead>
+    <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Status</th><th>Last login</th><th></th></tr></thead>
     <tbody>
     <?php if (!$users): ?>
-        <tr><td colspan="7">No users match these filters.</td></tr>
+        <tr><td colspan="6">No committee logins match these filters.</td></tr>
     <?php endif; ?>
     <?php foreach ($users as $row): ?>
         <tr>
             <td><?= e($row['full_name'] ?: $row['username']) ?></td>
             <td><?= e($row['username']) ?></td>
             <td><?= e(role_label((string) $row['role'])) ?></td>
-            <td><?= e($row['student_name'] ? ($row['student_name'] . ($row['student_code'] ? ' · ' . $row['student_code'] : '')) : '—') ?></td>
             <td><?= admin_active_badge($row['is_active'] ?? 0) ?></td>
             <td><?= $row['last_login_at'] ? e(format_when($row['last_login_at'])) : 'Never' ?></td>
             <td class="row-actions">
@@ -429,7 +391,6 @@ admin_page_head(
         <article class="panel user-card">
             <h2><?= e($row['full_name'] ?: $row['username']) ?></h2>
             <p class="muted"><?= e($row['username']) ?> · <?= e(role_label((string) $row['role'])) ?></p>
-            <p><?= e($row['student_name'] ?: 'No linked student') ?></p>
             <p><?= admin_active_badge($row['is_active'] ?? 0) ?> · <?= $row['last_login_at'] ? e(format_when($row['last_login_at'])) : 'Never signed in' ?></p>
             <div class="form-actions">
                 <a class="btn btn-sm btn-ghost" href="?edit=<?= (int) $row['id'] ?>">Edit</a>
@@ -441,25 +402,12 @@ admin_page_head(
 (function () {
     const role = document.getElementById('user-role');
     const fields = document.getElementById('permission-fields');
-    const studentLink = document.getElementById('student-link');
-    const filter = document.getElementById('student-filter');
-    const select = document.getElementById('student-id');
     const sync = () => {
         const value = role ? role.value : 'committee';
         if (fields) fields.hidden = value !== 'committee';
-        if (studentLink) studentLink.hidden = value !== 'student';
     };
     if (role) role.addEventListener('change', sync);
     sync();
-    if (filter && select) {
-        filter.addEventListener('input', () => {
-            const q = filter.value.toLowerCase();
-            Array.from(select.options).forEach((opt, i) => {
-                if (i === 0) return;
-                opt.hidden = q !== '' && !opt.text.toLowerCase().includes(q);
-            });
-        });
-    }
 })();
 </script>
 <?php admin_footer(); ?>

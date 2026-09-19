@@ -5,41 +5,41 @@ declare(strict_types=1);
 function admin_nav_groups(): array
 {
     return [
-        'Overview' => [
-            'index' => ['label' => 'Overview', 'href' => 'admin/index.php', 'icon' => 'layout', 'can' => ['dashboard.view']],
+        t('admin.group.overview') => [
+            'index' => ['label' => t('admin.overview'), 'href' => 'admin/index.php', 'icon' => 'layout', 'can' => ['dashboard.view']],
         ],
-        'Class' => [
-            'students' => ['label' => 'Students', 'href' => 'admin/students.php', 'icon' => 'users', 'can' => ['students.view', 'students.create', 'students.edit']],
-            'uniforms' => ['label' => 'Uniforms', 'href' => 'admin/uniforms.php', 'icon' => 'shirt', 'can' => ['uniforms.view', 'uniforms.edit']],
-            'payments' => ['label' => 'Payments', 'href' => 'admin/payments.php', 'icon' => 'wallet', 'can' => ['payments.view', 'payments.manage']],
+        t('admin.group.class') => [
+            'students' => ['label' => t('admin.students'), 'href' => 'admin/students.php', 'icon' => 'users', 'can' => ['students.view', 'students.create', 'students.edit']],
+            'uniforms' => ['label' => t('admin.uniforms'), 'href' => 'admin/uniforms.php', 'icon' => 'shirt', 'can' => ['uniforms.view', 'uniforms.edit']],
+            'payments' => ['label' => t('admin.payments'), 'href' => 'admin/payments.php', 'icon' => 'wallet', 'can' => ['payments.view', 'payments.manage']],
         ],
-        'Content' => [
-            'timeline' => ['label' => 'Journey', 'href' => 'admin/timeline.php', 'icon' => 'route', 'can' => ['timeline.view', 'timeline.manage']],
-            'events' => ['label' => 'Calendar', 'href' => 'admin/events.php', 'icon' => 'calendar', 'can' => ['events.view', 'events.create', 'events.edit', 'events.delete']],
-            'announcements' => ['label' => 'Announcements', 'href' => 'admin/announcements.php', 'icon' => 'megaphone', 'can' => ['announcements.view', 'announcements.create', 'announcements.edit', 'announcements.delete']],
-            'gallery' => ['label' => 'Gallery', 'href' => 'admin/gallery.php', 'icon' => 'image', 'can' => ['gallery.view', 'gallery.upload', 'gallery.edit', 'gallery.delete']],
-            'memories' => ['label' => 'Memory wall', 'href' => 'admin/memories.php', 'icon' => 'quote', 'can' => ['memories.view', 'memories.manage']],
-            'spotlights' => ['label' => 'Spotlight', 'href' => 'admin/spotlights.php', 'icon' => 'star', 'can' => ['spotlights.view', 'spotlights.manage']],
-            'messages' => ['label' => 'Messages', 'href' => 'admin/messages.php', 'icon' => 'message', 'can' => ['messages.view', 'messages.manage']],
-            'achievements' => ['label' => 'Achievements', 'href' => 'admin/achievements.php', 'icon' => 'award', 'can' => ['achievements.view', 'achievements.manage']],
-            'committee' => ['label' => 'Committee', 'href' => 'admin/committee.php', 'icon' => 'flag', 'can' => ['committee.view', 'committee.manage']],
+        t('admin.group.content') => [
+            'timeline' => ['label' => t('admin.journey'), 'href' => 'admin/timeline.php', 'icon' => 'route', 'can' => ['timeline.view', 'timeline.manage']],
+            'events' => ['label' => t('admin.calendar'), 'href' => 'admin/events.php', 'icon' => 'calendar', 'can' => ['events.view', 'events.create', 'events.edit', 'events.delete']],
+            'announcements' => ['label' => t('admin.announcements'), 'href' => 'admin/announcements.php', 'icon' => 'megaphone', 'can' => ['announcements.view', 'announcements.create', 'announcements.edit', 'announcements.delete']],
+            'gallery' => ['label' => t('admin.gallery'), 'href' => 'admin/gallery.php', 'icon' => 'image', 'can' => ['gallery.view', 'gallery.upload', 'gallery.edit', 'gallery.delete']],
+            'memories' => ['label' => t('admin.memories'), 'href' => 'admin/memories.php', 'icon' => 'quote', 'can' => ['memories.view', 'memories.manage']],
+            'spotlights' => ['label' => t('admin.spotlight'), 'href' => 'admin/spotlights.php', 'icon' => 'star', 'can' => ['spotlights.view', 'spotlights.manage']],
+            'messages' => ['label' => t('admin.messages'), 'href' => 'admin/messages.php', 'icon' => 'message', 'can' => ['messages.view', 'messages.manage']],
+            'achievements' => ['label' => t('admin.achievements'), 'href' => 'admin/achievements.php', 'icon' => 'award', 'can' => ['achievements.view', 'achievements.manage']],
+            'committee' => ['label' => t('admin.committee'), 'href' => 'admin/committee.php', 'icon' => 'flag', 'can' => ['committee.view', 'committee.manage']],
         ],
-        'Interactions' => [
-            'polls' => ['label' => 'Polls', 'href' => 'admin/polls.php', 'icon' => 'bar-chart', 'can' => ['polls.view', 'polls.create', 'polls.edit', 'polls.delete', 'polls.close', 'polls.results']],
-            'questions' => ['label' => 'Questions', 'href' => 'admin/questions.php', 'icon' => 'help', 'can' => ['questions.view', 'questions.create', 'questions.moderate', 'questions.delete', 'questions.close']],
+        t('admin.group.interactions') => [
+            'polls' => ['label' => t('admin.polls'), 'href' => 'admin/polls.php', 'icon' => 'bar-chart', 'can' => ['polls.view', 'polls.create', 'polls.edit', 'polls.delete', 'polls.close', 'polls.results']],
+            'questions' => ['label' => t('admin.questions'), 'href' => 'admin/questions.php', 'icon' => 'help', 'can' => ['questions.view', 'questions.create', 'questions.moderate', 'questions.delete', 'questions.close']],
         ],
-        'Graduation' => [
-            'graduation' => ['label' => 'Graduation', 'href' => 'admin/graduation.php', 'icon' => 'graduation', 'can' => ['graduation.view', 'graduation.manage']],
+        t('admin.group.graduation') => [
+            'graduation' => ['label' => t('admin.graduation'), 'href' => 'admin/graduation.php', 'icon' => 'graduation', 'can' => ['graduation.view', 'graduation.manage']],
         ],
-        'Management' => [
-            'reports' => ['label' => 'Reports', 'href' => 'admin/reports.php', 'icon' => 'file', 'can' => ['reports.view', 'reports.export']],
-            'activity' => ['label' => 'Activity', 'href' => 'admin/activity.php', 'icon' => 'clock', 'can' => ['activity.view']],
+        t('admin.group.management') => [
+            'reports' => ['label' => t('admin.reports'), 'href' => 'admin/reports.php', 'icon' => 'file', 'can' => ['reports.view', 'reports.export']],
+            'activity' => ['label' => t('admin.activity'), 'href' => 'admin/activity.php', 'icon' => 'clock', 'can' => ['activity.view']],
         ],
-        'System' => [
-            'users' => ['label' => 'Users', 'href' => 'admin/users.php', 'icon' => 'lock', 'can' => ['users.manage']],
-            'roles' => ['label' => 'Roles & permissions', 'href' => 'admin/roles.php', 'icon' => 'flag', 'can' => ['roles.manage']],
-            'student-accounts' => ['label' => 'Student accounts', 'href' => 'admin/student-accounts.php', 'icon' => 'users', 'can' => ['users.manage']],
-            'settings' => ['label' => 'Settings', 'href' => 'admin/settings.php', 'icon' => 'settings'],
+        t('admin.group.system') => [
+            'users' => ['label' => t('admin.users'), 'href' => 'admin/users.php', 'icon' => 'lock', 'can' => ['users.manage']],
+            'roles' => ['label' => t('admin.roles'), 'href' => 'admin/roles.php', 'icon' => 'flag', 'can' => ['roles.manage']],
+            'student-accounts' => ['label' => t('admin.student_accounts'), 'href' => 'admin/student-accounts.php', 'icon' => 'users', 'can' => ['users.manage']],
+            'settings' => ['label' => t('admin.settings'), 'href' => 'admin/settings.php', 'icon' => 'settings'],
         ],
     ];
 }
@@ -49,25 +49,25 @@ function admin_header(string $title, string $active = 'index'): void
     $user = current_user();
     ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<?= e(current_lang()) ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <?= csrf_meta() ?>
-    <title><?= e($title) ?> · <?= e(class_name()) ?> Admin</title>
+    <title><?= e($title) ?> · <?= e(class_name()) ?> <?= e(t('admin.brand')) ?></title>
     <link rel="icon" href="<?= e(url('assets/images/favicon.svg')) ?>" type="image/svg+xml">
     <?php site_font_links(); ?>
-    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=49">
-    <link rel="stylesheet" href="<?= e(url('assets/css/admin.css')) ?>?v=37">
+    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=51">
+    <link rel="stylesheet" href="<?= e(url('assets/css/admin.css')) ?>?v=39">
 </head>
 <body class="admin-body">
-    <a class="skip-link" href="#main">Skip to content</a>
+    <a class="skip-link" href="#main"><?= e(t('skip')) ?></a>
     <div class="admin-shell">
         <aside class="admin-sidebar" id="admin-sidebar" data-sidebar>
             <a class="brand admin-brand" href="<?= e(url('admin/index.php')) ?>">
                 <span class="brand-text">
                     <strong><?= e(class_name()) ?></strong>
-                    <span>Admin</span>
+                    <span><?= e(t('admin.brand')) ?></span>
                 </span>
             </a>
             <nav class="admin-nav">
@@ -100,21 +100,22 @@ function admin_header(string $title, string $active = 'index'): void
                         <span class="muted"><?= e(role_label((string) ($user['role'] ?? ''))) ?></span>
                     </div>
                 </div>
-                <a href="<?= e(url('admin/settings.php')) ?>#account"><?= icon('settings', 16) ?> Account</a>
-                <a href="<?= e(url('index.php')) ?>"><?= icon('external', 16) ?> View site</a>
-                <a href="<?= e(url('logout.php')) ?>"><?= icon('logout', 16) ?> Logout</a>
+                <a href="<?= e(url('admin/settings.php')) ?>#account"><?= icon('settings', 16) ?> <?= e(t('nav.account')) ?></a>
+                <a href="<?= e(url('index.php')) ?>"><?= icon('external', 16) ?> <?= e(t('nav.view_site')) ?></a>
+                <a href="<?= e(url('logout.php')) ?>"><?= icon('logout', 16) ?> <?= e(t('nav.sign_out')) ?></a>
             </div>
         </aside>
         <div class="admin-main">
             <header class="admin-topbar">
                 <button class="nav-toggle" type="button" data-sidebar-toggle aria-controls="admin-sidebar" aria-expanded="false">
-                    <span class="sr-only">Open menu</span>
+                    <span class="sr-only"><?= e(t('nav.open_menu')) ?></span>
                     <?= icon('menu') ?>
                 </button>
                 <div class="admin-topbar-title">
-                    <p class="eyebrow"><?= e(class_name()) ?> · Grade <?= e(class_grade()) ?></p>
+                    <p class="eyebrow"><?= e(class_name()) ?> · <?= e(t('grade', ['grade' => class_grade()])) ?></p>
                     <h1><?= e($title) ?></h1>
                 </div>
+                <?php render_language_switcher(); ?>
                 <?php render_notification_bell('admin'); ?>
                 <details class="account-menu">
                     <summary>
@@ -122,10 +123,10 @@ function admin_header(string $title, string $active = 'index'): void
                         <span class="account-menu-role"><?= e(role_label((string) ($user['role'] ?? ''))) ?></span>
                     </summary>
                     <div class="account-menu-panel">
-                        <a href="<?= e(url('admin/settings.php')) ?>#account">Account</a>
-                        <a href="<?= e(url('admin/settings.php')) ?>#account">Change password</a>
-                        <a href="<?= e(url('index.php')) ?>">Public site</a>
-                        <a href="<?= e(url('logout.php')) ?>">Logout</a>
+                        <a href="<?= e(url('admin/settings.php')) ?>#account"><?= e(t('nav.account')) ?></a>
+                        <a href="<?= e(url('admin/settings.php')) ?>#account"><?= e(t('admin.change_password')) ?></a>
+                        <a href="<?= e(url('index.php')) ?>"><?= e(t('nav.public_site')) ?></a>
+                        <a href="<?= e(url('logout.php')) ?>"><?= e(t('nav.sign_out')) ?></a>
                     </div>
                 </details>
             </header>
@@ -151,16 +152,16 @@ function admin_footer(): void
     <div class="nav-backdrop" data-sidebar-backdrop></div>
     <div class="modal-root" id="confirm-modal" hidden>
         <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-text">
-            <button type="button" class="icon-btn modal-close" data-confirm-cancel aria-label="Close"><?= icon('x', 18) ?></button>
-            <h2 id="confirm-title">Are you sure?</h2>
-            <p id="confirm-text">This action cannot be undone.</p>
+            <button type="button" class="icon-btn modal-close" data-confirm-cancel aria-label="<?= e(t('admin.close')) ?>"><?= icon('x', 18) ?></button>
+            <h2 id="confirm-title"><?= e(t('admin.confirm_title')) ?></h2>
+            <p id="confirm-text"><?= e(t('admin.confirm_text')) ?></p>
             <div class="modal-actions">
-                <button type="button" class="btn btn-ghost" data-confirm-cancel>Cancel</button>
-                <button type="button" class="btn btn-danger" data-confirm-ok>Delete</button>
+                <button type="button" class="btn btn-ghost" data-confirm-cancel><?= e(t('admin.cancel')) ?></button>
+                <button type="button" class="btn btn-danger" data-confirm-ok><?= e(t('admin.delete')) ?></button>
             </div>
         </div>
     </div>
-    <script src="<?= e(url('assets/js/app.js')) ?>?v=10"></script>
+    <script src="<?= e(url('assets/js/app.js')) ?>?v=12"></script>
     <script src="<?= e(url('assets/js/admin.js')) ?>?v=8"></script>
 </body>
 </html>

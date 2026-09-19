@@ -318,10 +318,12 @@ function format_when(?string $datetime): string
     $day = date('Y-m-d', $ts);
     $time = date('g:i A', $ts);
     if ($day === date('Y-m-d')) {
-        return 'Today, ' . $time;
+        $label = function_exists('t') ? t('when.today', ['time' => $time]) : ('Today, ' . $time);
+        return $label;
     }
     if ($day === date('Y-m-d', strtotime('-1 day'))) {
-        return 'Yesterday, ' . $time;
+        $label = function_exists('t') ? t('when.yesterday', ['time' => $time]) : ('Yesterday, ' . $time);
+        return $label;
     }
     return date('M j, Y', $ts) . ', ' . $time;
 }
@@ -779,7 +781,7 @@ function site_font_links(): void
 {
     echo '<link rel="preconnect" href="https://fonts.googleapis.com">' . "\n";
     echo '    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' . "\n";
-    echo '    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&display=swap" rel="stylesheet">' . "\n";
+    echo '    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&family=Noto+Sans+Ethiopic:wght@400;500;600;700&display=swap" rel="stylesheet">' . "\n";
 }
 
 function redirect_class_section(string $id, array $query = []): void

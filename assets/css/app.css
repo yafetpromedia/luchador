@@ -40,8 +40,8 @@
     --space-7: 3rem;
     --space-8: 4rem;
 
-    --font: "Inter", system-ui, sans-serif;
-    --font-display: "Inter", system-ui, sans-serif;
+    --font: "Inter", "Noto Sans Ethiopic", system-ui, sans-serif;
+    --font-display: "Inter", "Noto Sans Ethiopic", system-ui, sans-serif;
     --text-xs: 0.75rem;
     --text-sm: 0.8125rem;
     --text-md: 0.9375rem;
@@ -81,6 +81,22 @@
 *::after { box-sizing: border-box; }
 
 html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-h) + 12px); }
+
+html[lang="am"] {
+    --font: "Noto Sans Ethiopic", "Inter", system-ui, sans-serif;
+    --font-display: "Noto Sans Ethiopic", "Inter", system-ui, sans-serif;
+}
+html[lang="am"] h1,
+html[lang="am"] h2,
+html[lang="am"] h3,
+html[lang="am"] h4,
+html[lang="am"] .brand-text strong {
+    letter-spacing: 0;
+}
+html[lang="am"] .brand-text span {
+    letter-spacing: 0.02em;
+    text-transform: none;
+}
 
 body {
     margin: 0;
@@ -1540,12 +1556,12 @@ tbody tr:last-child td { border-bottom: 0; }
     color: #fafafa;
     color-scheme: dark;
     position: relative;
-    overflow: hidden;
 }
 .auth-motion {
     position: absolute;
     inset: 0;
     pointer-events: none;
+    overflow: hidden;
 }
 .auth-mark {
     position: absolute;
@@ -2972,10 +2988,11 @@ img.stu-avatar {
 }
 .notif-item:first-child { border-top: 0; }
 .notif-item:hover { background: var(--color-surface-muted); }
-.notif-item-title { font-weight: 650; font-size: 0.88rem; }
+.notif-item-title { font-weight: 650; font-size: 0.88rem; overflow-wrap: anywhere; }
 .notif-item-body {
     color: var(--color-text-secondary);
     font-size: 0.8rem;
+    overflow-wrap: anywhere;
 }
 .notif-item-when {
     color: var(--color-text-muted);
@@ -2987,7 +3004,95 @@ img.stu-avatar {
     border-color: #3f3f46;
     color: #fafafa;
 }
-.header-inner .notif-bell { margin-left: 0.35rem; }
+.header-inner .notif-bell,
+.header-inner .lang-switch { margin-left: 0; }
+.header-tools {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+
+.lang-switch { position: relative; flex-shrink: 0; }
+.lang-switch > summary {
+    list-style: none;
+    display: grid;
+    place-items: center;
+    min-width: 40px;
+    height: 40px;
+    padding: 0 0.55rem;
+    border: 1px solid var(--color-border-strong);
+    background: var(--color-surface);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--color-text);
+    user-select: none;
+}
+.lang-switch > summary::-webkit-details-marker,
+.lang-switch > summary::marker { display: none; }
+.lang-switch[open] > summary { background: var(--color-surface-muted); }
+.lang-switch-panel {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 0.45rem);
+    min-width: 9.75rem;
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-md);
+    z-index: 80;
+    padding: 0.35rem;
+}
+.lang-switch-panel a {
+    display: block;
+    padding: 0.5rem 0.65rem;
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--color-text);
+    font-size: 0.86rem;
+    font-weight: 600;
+}
+.lang-switch-panel a:hover { background: var(--color-surface-muted); }
+.lang-switch-panel a[aria-current="true"] { background: var(--color-surface-muted); }
+.onepage .lang-switch > summary,
+.auth-body .lang-switch > summary {
+    background: #18181b;
+    border-color: #3f3f46;
+    color: #fafafa;
+}
+.onepage .lang-switch[open] > summary,
+.auth-body .lang-switch[open] > summary { background: #27272a; }
+.auth-lang {
+    position: fixed;
+    top: max(1rem, env(safe-area-inset-top));
+    right: max(1rem, env(safe-area-inset-right));
+    z-index: 20;
+}
+.auth-lang .lang-switch-panel { color: var(--color-text); color-scheme: light; }
+
+html[lang="am"] h1,
+html[lang="am"] h2,
+html[lang="am"] h3,
+html[lang="am"] h4,
+html[lang="am"] .cover h1,
+html[lang="am"] .auth-intro h1,
+html[lang="am"] .brand-text strong,
+html[lang="am"] .student-topbar h1,
+html[lang="am"] .admin-topbar h1 {
+    letter-spacing: 0;
+}
+html[lang="am"] .cover h1 {
+    max-width: none;
+    line-height: 1.2;
+}
+html[lang="am"] .eyebrow,
+html[lang="am"] .brand-text span {
+    text-transform: none;
+    letter-spacing: 0.02em;
+}
 @media (max-width: 1180px) {
     .header-inner .nav-toggle { margin-left: auto; }
 }
@@ -3003,8 +3108,45 @@ img.stu-avatar {
     max-width: 18rem;
     font-size: 0.84rem;
     box-shadow: var(--shadow-md);
+    overflow-wrap: anywhere;
 }
 .student-body .notif-toast { bottom: 5.2rem; }
+
+.notif-panel.is-sheet:not([hidden]) {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: max(0.75rem, env(safe-area-inset-left));
+    right: max(0.75rem, env(safe-area-inset-right));
+    width: auto;
+    z-index: 95;
+}
+.notif-panel.is-sheet .notif-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+}
+
+@media (max-width: 720px) {
+    .notif-toggle {
+        width: 44px;
+        height: 44px;
+    }
+    .notif-head {
+        gap: 0.45rem;
+        padding: 0.8rem 0.95rem 0.6rem;
+    }
+    .notif-item { padding: 0.85rem 0.95rem; }
+    .notif-toast {
+        left: max(0.75rem, env(safe-area-inset-left));
+        right: max(0.75rem, env(safe-area-inset-right));
+        bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+        max-width: none;
+    }
+    .student-body .notif-toast {
+        bottom: calc(5.4rem + env(safe-area-inset-bottom, 0px));
+    }
+}
 
 .stu-stack { display: grid; gap: 0.85rem; }
 a.interact-link {

@@ -8,19 +8,19 @@ function public_nav_items(bool $onHome = false): array
 {
     $base = $onHome ? '' : 'index.php';
     $items = [
-        'home' => ['label' => 'Home', 'href' => $base . '#home'],
+        'home' => ['label' => t('nav.home'), 'href' => $base . '#home'],
     ];
     if (function_exists('has_visible_content') && has_visible_content('events')) {
-        $items['events'] = ['label' => 'Events', 'href' => $base . '#events'];
+        $items['events'] = ['label' => t('nav.events'), 'href' => $base . '#events'];
     }
     if (function_exists('has_visible_content') && has_visible_content('gallery')) {
-        $items['gallery'] = ['label' => 'Gallery', 'href' => $base . '#gallery'];
+        $items['gallery'] = ['label' => t('nav.gallery'), 'href' => $base . '#gallery'];
     }
-    $items['journey'] = ['label' => 'About', 'href' => $base . '#journey'];
+    $items['journey'] = ['label' => t('nav.about'), 'href' => $base . '#journey'];
     if (setting_bool('graduation_public')) {
-        $items['graduation'] = ['label' => 'Graduation', 'href' => $base . '#graduation'];
+        $items['graduation'] = ['label' => t('nav.graduation'), 'href' => $base . '#graduation'];
     }
-    $items['contact'] = ['label' => 'Contact', 'href' => $base . '#contact'];
+    $items['contact'] = ['label' => t('nav.contact'), 'href' => $base . '#contact'];
     return $items;
 }
 
@@ -30,7 +30,7 @@ function public_header(string $title, string $active = 'home', string $descripti
     $ogImage = setting('hero_image');
     ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<?= e(current_lang()) ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -45,26 +45,26 @@ function public_header(string $title, string $active = 'home', string $descripti
     <?php endif; ?>
     <link rel="icon" href="<?= e(url('assets/images/favicon.svg')) ?>" type="image/svg+xml">
     <?php site_font_links(); ?>
-    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=49">
+    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=51">
 </head>
 <body class="<?= $onePage ? 'onepage' : '' ?>">
-    <a class="skip-link" href="#main">Skip to content</a>
+    <a class="skip-link" href="#main"><?= e(t('skip')) ?></a>
     <header class="site-header">
         <div class="container header-inner">
             <a class="brand" href="<?= e($onePage ? '#home' : url('index.php#home')) ?>">
                 <span class="brand-text">
                     <strong><?= e(class_name()) ?></strong>
-                    <span>Grade <?= e(class_grade()) ?></span>
+                    <span><?= e(t('grade', ['grade' => class_grade()])) ?></span>
                 </span>
             </a>
             <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" data-nav-toggle>
-                <span class="sr-only">Open menu</span>
+                <span class="sr-only"><?= e(t('nav.open_menu')) ?></span>
                 <?= icon('menu') ?>
             </button>
             <nav class="site-nav" id="site-nav" data-nav>
                 <div class="nav-drawer-head">
-                    <span>Menu</span>
-                    <button type="button" class="icon-btn" data-nav-close aria-label="Close menu"><?= icon('x') ?></button>
+                    <span><?= e(t('nav.menu')) ?></span>
+                    <button type="button" class="icon-btn" data-nav-close aria-label="<?= e(t('nav.close_menu')) ?>"><?= icon('x') ?></button>
                 </div>
                 <?php foreach (public_nav_items($onePage) as $key => $item): ?>
                     <a href="<?= e($onePage ? $item['href'] : url($item['href'])) ?>" <?= $active === $key ? 'aria-current="page"' : '' ?>><?= e($item['label']) ?></a>
@@ -72,14 +72,17 @@ function public_header(string $title, string $active = 'home', string $descripti
                 <?php
                 if (is_logged_in()) {
                     $portalHref = post_login_path(current_user());
-                    $portalLabel = is_student() ? 'Class home' : 'Dashboard';
+                    $portalLabel = is_student() ? t('nav.class_home') : t('nav.dashboard');
                     echo '<a class="nav-login" href="' . e(url($portalHref)) . '">' . e($portalLabel) . '</a>';
                 } else {
-                    echo '<a class="nav-login" href="' . e(url('login.php')) . '">Sign in</a>';
+                    echo '<a class="nav-login" href="' . e(url('login.php')) . '">' . e(t('nav.sign_in')) . '</a>';
                 }
                 ?>
             </nav>
-            <?php render_notification_bell('public'); ?>
+            <div class="header-tools">
+                <?php render_language_switcher(); ?>
+                <?php render_notification_bell('public'); ?>
+            </div>
         </div>
     </header>
     <div class="nav-backdrop" data-nav-backdrop></div>
@@ -95,20 +98,20 @@ function public_footer(bool $onePage = false): void
     </main>
     <footer class="site-footer">
         <div class="container footer-simple">
-            <p><?= e(class_name()) ?> · Grade <?= e(class_grade()) ?> · <?= e(school_name()) ?></p>
+            <p><?= e(class_name()) ?> · <?= e(t('grade', ['grade' => class_grade()])) ?> · <?= e(school_name()) ?></p>
             <p>
-                <a href="<?= e($onePage ? '#contact' : url($base . '#contact')) ?>">Contact</a>
+                <a href="<?= e($onePage ? '#contact' : url($base . '#contact')) ?>"><?= e(t('nav.contact')) ?></a>
                 <?php if ($showLeadership): ?>
                 ·
-                <a href="<?= e($onePage ? '#committee' : url($base . '#committee')) ?>">Leadership</a>
+                <a href="<?= e($onePage ? '#committee' : url($base . '#committee')) ?>"><?= e(t('footer.leadership')) ?></a>
                 <?php endif; ?>
                 ·
-                <a href="<?= e(url('login.php')) ?>">Sign in</a>
+                <a href="<?= e(url('login.php')) ?>"><?= e(t('nav.sign_in')) ?></a>
             </p>
             <p class="muted">&copy; <?= current_year() ?> <?= e(class_name()) ?></p>
         </div>
     </footer>
-    <script src="<?= e(url('assets/js/app.js')) ?>?v=10"></script>
+    <script src="<?= e(url('assets/js/app.js')) ?>?v=12"></script>
 </body>
 </html>
     <?php

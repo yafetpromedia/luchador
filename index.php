@@ -30,7 +30,7 @@ $showGraduation = setting_bool('graduation_public');
 $showCommittee = $members !== [];
 $countdown = $showGraduation && setting_bool('countdown_enabled') && $gradDate;
 $loginHref = is_logged_in() ? post_login_path(current_user()) : 'login.php';
-$loginLabel = is_logged_in() ? (is_student() ? 'Class home' : 'Dashboard') : 'Sign in';
+$loginLabel = is_logged_in() ? (is_student() ? t('nav.class_home') : t('nav.dashboard')) : t('nav.sign_in');
 
 $monthParam = request_str('month');
 $month = $monthParam !== '' ? parse_year_month($monthParam) : default_calendar_month();
@@ -59,25 +59,25 @@ public_header(site_title(), 'home', setting('hero_message'), true);
     <div class="container cover-grid">
         <div class="cover-copy">
             <p class="cover-meta"><?= e(class_name()) ?> · <?= e(school_name()) ?></p>
-            <h1>We’re Grade <?= e(class_grade()) ?>.</h1>
-            <p class="cover-lede">One class. One year. Still being written.</p>
+            <h1><?= e(t('home.hero_title', ['grade' => class_grade()])) ?></h1>
+            <p class="cover-lede"><?= e(t('home.hero_lede')) ?></p>
             <p class="hero-actions">
                 <?php if ($showEvents): ?>
-                    <a class="btn" href="#events">See events</a>
+                    <a class="btn" href="#events"><?= e(t('home.see_events')) ?></a>
                 <?php endif; ?>
-                <a class="btn<?= $showEvents ? ' btn-ghost' : '' ?>" href="#journey">Our story</a>
+                <a class="btn<?= $showEvents ? ' btn-ghost' : '' ?>" href="#journey"><?= e(t('home.our_story')) ?></a>
                 <a class="btn btn-ghost" href="<?= e(url($loginHref)) ?>"><?= e($loginLabel) ?></a>
             </p>
         </div>
         <?php if ($nextEvent && !empty($nextEvent['title'])): ?>
             <aside class="cover-side">
-                <p class="eyebrow">Next up</p>
+                <p class="eyebrow"><?= e(t('home.next_up')) ?></p>
                 <p class="cover-next-title"><?= e($nextEvent['title']) ?></p>
                 <p class="muted">
-                    <?= !empty($nextEvent['event_date']) ? e(format_date($nextEvent['event_date'])) : 'Date to be announced' ?>
+                    <?= !empty($nextEvent['event_date']) ? e(format_date($nextEvent['event_date'])) : e(t('home.date_tba')) ?>
                     <?= !empty($nextEvent['event_time']) ? ' · ' . e($nextEvent['event_time']) : '' ?>
                 </p>
-                <a class="text-link" href="<?= e(url('event.php?id=' . (int) $nextEvent['id'])) ?>">View event</a>
+                <a class="text-link" href="<?= e(url('event.php?id=' . (int) $nextEvent['id'])) ?>"><?= e(t('home.view_event')) ?></a>
             </aside>
         <?php endif; ?>
     </div>
@@ -90,8 +90,8 @@ public_header(site_title(), 'home', setting('hero_message'), true);
 <?php if ($timeline || $achievements): ?>
 <section class="section" id="year">
     <div class="container">
-        <p class="eyebrow">Our year</p>
-        <h2><?= e(setting('academic_year') ?: 'This year') ?></h2>
+        <p class="eyebrow"><?= e(t('home.our_year')) ?></p>
+        <h2><?= e(setting('academic_year') ?: t('home.this_year')) ?></h2>
         <?php if ($timeline): ?>
             <div class="year-track">
                 <?php foreach ($timeline as $bucket): ?>
@@ -138,8 +138,8 @@ public_header(site_title(), 'home', setting('hero_message'), true);
 <?php if ($showEvents): ?>
 <section class="section" id="events">
     <div class="container">
-        <p class="eyebrow">Events</p>
-        <h2>Class calendar</h2>
+        <p class="eyebrow"><?= e(t('nav.events')) ?></p>
+        <h2><?= e(t('home.class_calendar')) ?></h2>
         <div class="events-fit">
         <?php if ($nextEvent): ?>
             <article class="feature-block">
@@ -152,10 +152,10 @@ public_header(site_title(), 'home', setting('hero_message'), true);
                 <div class="feature-copy">
                     <h3><?= e($nextEvent['title']) ?></h3>
                     <p class="muted">
-                        <?= !empty($nextEvent['event_time']) ? e($nextEvent['event_time']) : 'Time to be announced' ?>
+                        <?= !empty($nextEvent['event_time']) ? e($nextEvent['event_time']) : e(t('home.time_tba')) ?>
                         <?= !empty($nextEvent['location']) ? ' · ' . e($nextEvent['location']) : '' ?>
                     </p>
-                    <a class="text-link" href="<?= e(url('event.php?id=' . (int) $nextEvent['id'])) ?>">Details</a>
+                    <a class="text-link" href="<?= e(url('event.php?id=' . (int) $nextEvent['id'])) ?>"><?= e(t('home.details')) ?></a>
                 </div>
             </article>
         <?php endif; ?>
@@ -180,8 +180,8 @@ public_header(site_title(), 'home', setting('hero_message'), true);
 <section class="section" id="announcements">
     <div class="container">
         <div>
-            <p class="eyebrow">Updates</p>
-            <h2>Announcements</h2>
+            <p class="eyebrow"><?= e(t('home.updates')) ?></p>
+            <h2><?= e(t('home.announcements')) ?></h2>
         </div>
         <ol class="editorial-list editorial-list-full">
             <?php foreach ($announcements as $i => $item): ?>
@@ -205,8 +205,8 @@ public_header(site_title(), 'home', setting('hero_message'), true);
 <section class="section" id="gallery">
     <div class="container">
         <div>
-            <p class="eyebrow">Photos</p>
-            <h2>Gallery</h2>
+            <p class="eyebrow"><?= e(t('home.photos')) ?></p>
+            <h2><?= e(t('nav.gallery')) ?></h2>
         </div>
         <div class="filters" data-gallery-filters>
             <?php foreach ($galleryCats as $key => $label): ?>
@@ -228,8 +228,8 @@ public_header(site_title(), 'home', setting('hero_message'), true);
 <section class="section" id="memories">
     <div class="container">
         <div>
-            <p class="eyebrow">Words</p>
-            <h2>Memories</h2>
+            <p class="eyebrow"><?= e(t('home.words')) ?></p>
+            <h2><?= e(t('home.memories')) ?></h2>
         </div>
         <div class="memory-wall">
             <?php foreach ($messages as $item): ?>
@@ -251,20 +251,20 @@ public_header(site_title(), 'home', setting('hero_message'), true);
 
 <section class="section" id="journey">
     <div class="container">
-        <p class="eyebrow">Journey</p>
-        <h2>Who we are</h2>
+        <p class="eyebrow"><?= e(t('home.journey')) ?></p>
+        <h2><?= e(t('home.who_we_are')) ?></h2>
         <div class="<?= $milestones ? 'split' : '' ?>">
             <article class="prose">
                 <?php if (setting('about_who')): ?><p><?= e(setting('about_who')) ?></p><?php endif; ?>
                 <?php if (setting('about_community')): ?><p><?= e(setting('about_community')) ?></p><?php endif; ?>
                 <?php if (setting('about_academic')): ?><p><?= e(setting('about_academic')) ?></p><?php endif; ?>
                 <?php if (!setting('about_who') && !setting('about_community') && !setting('about_academic')): ?>
-                    <p class="muted">Class story text can be added from Settings.</p>
+                    <p class="muted"><?= e(t('home.story_placeholder')) ?></p>
                 <?php endif; ?>
             </article>
             <?php if ($milestones): ?>
                 <div>
-                    <h3>The path</h3>
+                    <h3><?= e(t('home.the_path')) ?></h3>
                     <ol class="journey">
                         <?php foreach ($milestones as $item): ?>
                             <li class="<?= !empty($item['highlight']) ? 'here' : '' ?>">
@@ -279,7 +279,7 @@ public_header(site_title(), 'home', setting('hero_message'), true);
         <?php if ($spotlights): ?>
             <?php $spot = $spotlights[0]; ?>
             <article class="spotlight-inline">
-                <p class="eyebrow">Spotlight</p>
+                <p class="eyebrow"><?= e(t('home.spotlight')) ?></p>
                 <h3><?= e($spot['student_name']) ?></h3>
                 <?php if ($spot['title']): ?><p><?= e($spot['title']) ?></p><?php endif; ?>
                 <?php if ($spot['description']): ?><p class="muted"><?= e($spot['description']) ?></p><?php endif; ?>
@@ -292,8 +292,8 @@ public_header(site_title(), 'home', setting('hero_message'), true);
 <section class="section<?= ($gradDate || setting('graduation_message') || setting('class_message')) ? '' : ' is-compact' ?>" id="graduation">
     <div class="container<?= ($gradDate || setting('graduation_message') || setting('class_message')) ? '' : ' section-row' ?>">
         <div>
-            <p class="eyebrow">Graduation</p>
-            <h2><?= e(setting('graduation_title', 'Graduation')) ?></h2>
+            <p class="eyebrow"><?= e(t('nav.graduation')) ?></p>
+            <h2><?= e(setting('graduation_title', t('nav.graduation'))) ?></h2>
         </div>
         <div>
         <?php if ($countdown && $gradDate): ?>
@@ -301,7 +301,7 @@ public_header(site_title(), 'home', setting('hero_message'), true);
         <?php elseif ($gradDate): ?>
             <p class="countdown-date"><?= e(format_date($gradDate)) ?></p>
         <?php else: ?>
-            <p class="muted">Graduation details appear here once they are set.</p>
+            <p class="muted"><?= e(t('home.grad_placeholder')) ?></p>
         <?php endif; ?>
         <?php if (setting('graduation_message')): ?>
             <p><?= nl2br(e(setting('graduation_message'))) ?></p>
@@ -317,8 +317,8 @@ public_header(site_title(), 'home', setting('hero_message'), true);
 <?php if ($showCommittee): ?>
 <section class="section" id="committee">
     <div class="container">
-        <p class="eyebrow">Leadership</p>
-        <h2>Committee</h2>
+        <p class="eyebrow"><?= e(t('footer.leadership')) ?></p>
+        <h2><?= e(t('home.committee')) ?></h2>
         <div class="people people-row">
             <?php foreach ($members as $member): ?>
                 <article class="person">
@@ -342,9 +342,9 @@ public_header(site_title(), 'home', setting('hero_message'), true);
 
 <section class="section" id="contact">
     <div class="container">
-        <p class="eyebrow">Contact</p>
-        <h2>Get in touch</h2>
-        <p class="muted">Reach <?= e(class_name()) ?> through the class email or phone.</p>
+        <p class="eyebrow"><?= e(t('nav.contact')) ?></p>
+        <h2><?= e(t('home.get_in_touch')) ?></h2>
+        <p class="muted"><?= e(t('home.contact_lede', ['class' => class_name()])) ?></p>
 
         <?php
         $contactEmail = setting('contact_email');
@@ -355,39 +355,39 @@ public_header(site_title(), 'home', setting('hero_message'), true);
         <div class="contact-grid">
             <article class="contact-card">
                 <span class="contact-icon"><?= icon('users', 18) ?></span>
-                <p class="eyebrow">Class</p>
+                <p class="eyebrow"><?= e(t('home.class')) ?></p>
                 <strong><?= e(school_name()) ?></strong>
-                <p class="muted"><?= e(class_name()) ?> · Grade <?= e(class_grade()) ?><?php if (setting('academic_year')): ?> · <?= e(setting('academic_year')) ?><?php endif; ?></p>
+                <p class="muted"><?= e(class_name()) ?> · <?= e(t('grade', ['grade' => class_grade()])) ?><?php if (setting('academic_year')): ?> · <?= e(setting('academic_year')) ?><?php endif; ?></p>
             </article>
             <?php if ($contactEmail !== ''): ?>
                 <article class="contact-card">
                     <span class="contact-icon"><?= icon('mail', 18) ?></span>
-                    <p class="eyebrow">Email</p>
+                    <p class="eyebrow"><?= e(t('home.email')) ?></p>
                     <strong><a href="mailto:<?= e($contactEmail) ?>"><?= e($contactEmail) ?></a></strong>
                     <div class="contact-card-actions">
-                        <a class="btn btn-sm" href="mailto:<?= e($contactEmail) ?>">Write</a>
-                        <button type="button" class="btn btn-sm btn-ghost" data-copy="<?= e($contactEmail) ?>">Copy</button>
+                        <a class="btn btn-sm" href="mailto:<?= e($contactEmail) ?>"><?= e(t('home.write')) ?></a>
+                        <button type="button" class="btn btn-sm btn-ghost" data-copy="<?= e($contactEmail) ?>"><?= e(t('home.copy')) ?></button>
                     </div>
                 </article>
             <?php endif; ?>
             <?php if ($contactPhone !== ''): ?>
                 <article class="contact-card">
                     <span class="contact-icon"><?= icon('phone', 18) ?></span>
-                    <p class="eyebrow">Phone</p>
+                    <p class="eyebrow"><?= e(t('home.phone')) ?></p>
                     <strong><?php if ($telHref !== ''): ?><a href="<?= e($telHref) ?>"><?= e($contactPhone) ?></a><?php else: ?><?= e($contactPhone) ?><?php endif; ?></strong>
                     <div class="contact-card-actions">
-                        <?php if ($telHref !== ''): ?><a class="btn btn-sm" href="<?= e($telHref) ?>">Call</a><?php endif; ?>
-                        <button type="button" class="btn btn-sm btn-ghost" data-copy="<?= e($contactPhone) ?>">Copy</button>
+                        <?php if ($telHref !== ''): ?><a class="btn btn-sm" href="<?= e($telHref) ?>"><?= e(t('home.call')) ?></a><?php endif; ?>
+                        <button type="button" class="btn btn-sm btn-ghost" data-copy="<?= e($contactPhone) ?>"><?= e(t('home.copy')) ?></button>
                     </div>
                 </article>
             <?php endif; ?>
             <?php if ($contactLocation !== ''): ?>
                 <article class="contact-card">
                     <span class="contact-icon"><?= icon('map-pin', 18) ?></span>
-                    <p class="eyebrow">Location</p>
+                    <p class="eyebrow"><?= e(t('home.location')) ?></p>
                     <strong><?= e($contactLocation) ?></strong>
                     <div class="contact-card-actions">
-                        <button type="button" class="btn btn-sm btn-ghost" data-copy="<?= e($contactLocation) ?>">Copy</button>
+                        <button type="button" class="btn btn-sm btn-ghost" data-copy="<?= e($contactLocation) ?>"><?= e(t('home.copy')) ?></button>
                     </div>
                 </article>
             <?php endif; ?>
@@ -395,9 +395,9 @@ public_header(site_title(), 'home', setting('hero_message'), true);
 
         <p class="contact-sign">
             <?php if (is_logged_in()): ?>
-                <a class="btn" href="<?= e(url(post_login_path(current_user()))) ?>"><?= is_student() ? 'Class home' : 'Dashboard' ?></a>
+                <a class="btn" href="<?= e(url(post_login_path(current_user()))) ?>"><?= is_student() ? e(t('nav.class_home')) : e(t('nav.dashboard')) ?></a>
             <?php else: ?>
-                <a class="btn" href="<?= e(url('login.php')) ?>">Sign in</a>
+                <a class="btn" href="<?= e(url('login.php')) ?>"><?= e(t('nav.sign_in')) ?></a>
             <?php endif; ?>
         </p>
     </div>

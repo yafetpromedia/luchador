@@ -8,6 +8,8 @@ if (!defined('APP_ROOT')) {
 
 require_once APP_ROOT . '/includes/helpers.php';
 start_app_session();
+require_once APP_ROOT . '/includes/i18n.php';
+init_language();
 
 require_once APP_ROOT . '/config/db.php';
 require_once APP_ROOT . '/includes/csrf.php';

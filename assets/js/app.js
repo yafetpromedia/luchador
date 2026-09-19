@@ -317,11 +317,15 @@
             state.unread = state.items.filter((item) => !item.read).length;
         };
 
+        const emptyText = root.getAttribute('data-empty') || 'No notifications yet.';
+        const notifLabel = root.getAttribute('data-label') || 'Notifications';
+        const unreadTpl = root.getAttribute('data-unread') || 'Notifications, {n} unread';
+
         const setCount = (n) => {
             if (!countEl) return;
             countEl.textContent = n > 99 ? '99+' : String(n);
             countEl.hidden = n < 1;
-            toggle?.setAttribute('aria-label', n > 0 ? `Notifications, ${n} unread` : 'Notifications');
+            toggle?.setAttribute('aria-label', n > 0 ? unreadTpl.replace('{n}', String(n)) : notifLabel);
         };
 
         const render = () => {
@@ -329,7 +333,8 @@
             setCount(state.unread || 0);
             if (!list) return;
             if (!state.items?.length) {
-                list.innerHTML = '<p class="notif-empty">No notifications yet.</p>';
+                list.innerHTML = '<p class="notif-empty"></p>';
+                list.querySelector('.notif-empty').textContent = emptyText;
                 return;
             }
             list.innerHTML = state.items.map((item) => {
@@ -399,12 +404,41 @@
             render();
         };
 
+        const placePanel = () => {
+            if (!panel || !toggle) return;
+            const compact = window.matchMedia('(max-width: 720px)').matches;
+            panel.classList.toggle('is-sheet', compact);
+            if (!compact) {
+                panel.style.top = '';
+                panel.style.maxHeight = '';
+                return;
+            }
+            if (panel.hidden) return;
+            const rect = toggle.getBoundingClientRect();
+            const top = Math.round(rect.bottom + 8);
+            const dock = document.querySelector('.student-dock');
+            let dockH = 0;
+            if (dock) {
+                const display = window.getComputedStyle(dock).display;
+                if (display !== 'none') {
+                    dockH = dock.getBoundingClientRect().height;
+                }
+            }
+            const bottomGap = Math.max(12, Math.round(dockH) + 12);
+            panel.style.top = `${top}px`;
+            panel.style.maxHeight = `${Math.max(140, window.innerHeight - top - bottomGap)}px`;
+        };
+
         toggle?.addEventListener('click', (event) => {
             event.stopPropagation();
             const open = panel.hidden;
             panel.hidden = !open;
             toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            if (open) {
+                window.requestAnimationFrame(placePanel);
+            }
         });
+        window.addEventListener('resize', placePanel);
         document.addEventListener('click', (event) => {
             if (!root.contains(event.target)) {
                 panel.hidden = true;
@@ -547,6 +581,14 @@
                 return;
             }
             apply(picked, dayEl.getAttribute('href'));
+        });
+    });
+
+    document.addEventListener('click', (event) => {
+        document.querySelectorAll('details.lang-switch[open]').forEach((el) => {
+            if (!el.contains(event.target)) {
+                el.removeAttribute('open');
+            }
         });
     });
 })();
