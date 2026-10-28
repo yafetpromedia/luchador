@@ -76,6 +76,19 @@ if (is_post()) {
             flash_set('success', 'Group removed.');
             redirect('admin/culture-day.php?event=' . $eid . '&tab=groups');
         }
+        if ($action === 'assign_gender') {
+            require_permission('culture_day.manage');
+            $eid = (int) posted('event_id');
+            $gender = posted('gender');
+            $ids = $_POST['student_ids'] ?? [];
+            if (!is_array($ids)) {
+                $ids = [];
+            }
+            $count = assign_students_gender($ids, $gender);
+            log_audit('culture_day.gender_assign', 'culture_day_event', $eid, student_gender_label($gender) . ' · ' . $count);
+            flash_set('success', $count . ' student' . ($count === 1 ? '' : 's') . ' marked as ' . student_gender_label($gender) . '.');
+            redirect('admin/culture-day.php?event=' . $eid . '&tab=lists');
+        }
         throw new InvalidArgumentException('Unknown action.');
     } catch (InvalidArgumentException $e) {
         flash_set('error', $e->getMessage());
@@ -299,41 +312,52 @@ if (count($searchRows) > 40) {
         </datalist>
 
         <?php if ($selectedIds): ?>
-            <p class="section-label" style="margin-top:1rem">Current members</p>
-            <div class="culture-member-chips">
-                <?php foreach (culture_day_members((int) ($group['id'] ?? 0)) as $m): ?>
-                    <label class="chip is-active">
-                        <input type="checkbox" name="member_ids[]" value="<?= (int) $m['student_id'] ?>" checked>
-                        <?= e($m['student_name']) ?><?= !empty($m['student_code']) ? ' · ' . e($m['student_code']) : '' ?>
-                    </label>
-                <?php endforeach; ?>
+            <div class="culture-roster-block">
+                <p class="section-label">Current members</p>
+                <div class="culture-member-chips">
+                    <?php foreach (culture_day_members((int) ($group['id'] ?? 0)) as $m): ?>
+                        <label class="culture-member-pill">
+                            <input type="checkbox" name="member_ids[]" value="<?= (int) $m['student_id'] ?>" checked>
+                            <span><?= e($m['student_name']) ?><?= !empty($m['student_code']) ? ' · ' . e($m['student_code']) : '' ?></span>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+                <p class="muted">Uncheck a name to remove them from this group.</p>
             </div>
-            <p class="muted">Uncheck to remove. Search below to add more existing students.</p>
         <?php endif; ?>
 
-        <p class="section-label" style="margin-top:1rem">Add students from the class roster</p>
-        <div class="toolbar" style="margin-bottom:0.75rem">
-            <div class="form-group search-field" style="flex:1">
-                <label class="sr-only" for="q">Search students</label>
-                <input id="q" form="culture-search" name="q" value="<?= e($q) ?>" placeholder="Search name or student ID">
+        <div class="culture-roster-block">
+            <p class="section-label">Add students from the class roster</p>
+            <div class="culture-roster-search">
+                <input id="q" form="culture-search" name="q" value="<?= e($q) ?>" placeholder="Search name or student ID" autocomplete="off">
+                <button class="btn" form="culture-search" type="submit">Search</button>
             </div>
-            <button class="btn btn-ghost" form="culture-search" type="submit">Search</button>
+            <p class="muted">Search existing class records only. New student profiles are never created here.</p>
+            <?php if ($q !== '' && !$searchRows): ?>
+                <p class="muted">No students matched “<?= e($q) ?>”.</p>
+            <?php elseif ($searchRows): ?>
+                <div class="culture-student-pick">
+                    <?php foreach ($searchRows as $stu): ?>
+                        <?php $sid = (int) $stu['id']; if (isset($selectedIds[$sid])) continue; ?>
+                        <label class="culture-pick-card">
+                            <input type="checkbox" name="member_ids[]" value="<?= $sid ?>">
+                            <span class="culture-pick-main">
+                                <strong><?= e($stu['student_name']) ?></strong>
+                                <span class="muted"><?= e($stu['student_code'] ?: 'No ID') ?><?= !empty($stu['section']) ? ' · ' . e(class_section_label((string) $stu['section'])) : '' ?></span>
+                            </span>
+                            <?php
+                            $g = student_gender_of($stu);
+                            if ($g === 'male' || $g === 'female'):
+                            ?>
+                                <span class="culture-gender-tag culture-gender-tag-<?= e($g) ?>"><?= e(student_gender_label($g)) ?></span>
+                            <?php else: ?>
+                                <span class="culture-gender-tag">Gender not set</span>
+                            <?php endif; ?>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
         </div>
-        <?php if ($q !== '' && !$searchRows): ?>
-            <p class="muted">No students matched “<?= e($q) ?>”.</p>
-        <?php elseif ($searchRows): ?>
-            <div class="culture-student-pick">
-                <?php foreach ($searchRows as $stu): ?>
-                    <?php $sid = (int) $stu['id']; if (isset($selectedIds[$sid])) continue; ?>
-                    <label class="check">
-                        <input type="checkbox" name="member_ids[]" value="<?= $sid ?>">
-                        <span><strong><?= e($stu['student_name']) ?></strong> <span class="muted"><?= e($stu['student_code'] ?: 'No ID') ?><?= !empty($stu['section']) ? ' · ' . e(class_section_label((string) $stu['section'])) : '' ?></span></span>
-                    </label>
-                <?php endforeach; ?>
-            </div>
-        <?php else: ?>
-            <p class="muted">Search by name or student ID, then select existing records. Duplicate profiles are not created.</p>
-        <?php endif; ?>
 
         <div class="form-actions" style="margin-top:1rem">
             <button class="btn" type="submit">Save group</button>
@@ -460,64 +484,204 @@ $filterMatch = static function (array $culture) use ($searchNeedle): bool {
 <?php endif; ?>
 
 <?php if ($tab === 'lists' || $tab === 'print'): ?>
-<div class="<?= $isPrint ? 'culture-print-sheet' : 'panel' ?>">
+<?php
+$listSearch = $tab === 'lists' ? trim(request_str('q')) : '';
+$listSearchRows = ($tab === 'lists' && $listSearch !== '') ? fetch_students(['search' => $listSearch, 'sort' => 'name']) : [];
+if (count($listSearchRows) > 40) {
+    $listSearchRows = array_slice($listSearchRows, 0, 40);
+}
+$eventMembers = culture_day_event_members((int) $event['id']);
+$uniqueMembers = [];
+foreach ($eventMembers as $em) {
+    $uniqueMembers[(int) $em['student_id']] = $em;
+}
+$maleMembers = [];
+$femaleMembers = [];
+$unknownMembers = [];
+foreach ($uniqueMembers as $em) {
+    $g = student_gender_of($em);
+    if ($g === 'male') {
+        $maleMembers[] = $em;
+    } elseif ($g === 'female') {
+        $femaleMembers[] = $em;
+    } else {
+        $unknownMembers[] = $em;
+    }
+}
+?>
+<div class="<?= $isPrint ? 'culture-print-sheet' : '' ?>">
     <?php if ($isPrint): ?>
-        <p class="eyebrow">Culture Day report</p>
-        <h1><?= e($event['title']) ?></h1>
-        <p class="muted"><?= e(format_date($event['event_date'] ?? null) ?: 'Date not set') ?> · <?= e(culture_day_status_label($status)) ?></p>
-        <p class="culture-print-actions no-print">
-            <button class="btn" type="button" onclick="window.print()">Print</button>
-            <a class="btn btn-ghost" href="<?= e(url('admin/culture-day.php?event=' . (int) $event['id'] . '&tab=overview')) ?>">Back</a>
-            <a class="btn btn-ghost" href="<?= e(url('admin/culture-day.php?event=' . (int) $event['id'] . '&export=csv')) ?>">CSV</a>
-        </p>
-    <?php else: ?>
-        <h2>Male and female lists</h2>
-        <p class="muted">Gender comes only from recorded student data. Missing values are listed separately — never guessed from names.</p>
+        <header class="culture-print-hero">
+            <p class="eyebrow">Culture Day report</p>
+            <h1><?= e($event['title']) ?></h1>
+            <p class="muted"><?= e(format_date($event['event_date'] ?? null) ?: 'Date not set') ?> · <?= e(culture_day_status_label($status)) ?></p>
+            <p class="culture-print-actions no-print">
+                <button class="btn" type="button" onclick="window.print()">Print</button>
+                <a class="btn btn-ghost" href="<?= e(url('admin/culture-day.php?event=' . (int) $event['id'] . '&tab=overview')) ?>">Back</a>
+                <a class="btn btn-ghost" href="<?= e(url('admin/culture-day.php?event=' . (int) $event['id'] . '&export=csv')) ?>">CSV</a>
+            </p>
+        </header>
+    <?php elseif (can_manage_culture_day()): ?>
+        <div class="panel culture-gender-assign">
+            <h2>Set male and female</h2>
+            <p class="muted">Add students into the Male space or the Female space. That records their gender on the class roster — never guessed from names.</p>
+            <div class="culture-gender-board">
+                <?php foreach (['male' => 'Male', 'female' => 'Female'] as $genderKey => $genderTitle): ?>
+                <section class="culture-gender-lane culture-gender-lane-<?= e($genderKey) ?>">
+                    <header>
+                        <h3><?= e($genderTitle) ?></h3>
+                        <span class="muted">Search, select, then save</span>
+                    </header>
+                    <form method="get" class="culture-roster-search">
+                        <input type="hidden" name="event" value="<?= (int) $event['id'] ?>">
+                        <input type="hidden" name="tab" value="lists">
+                        <input type="hidden" name="lane" value="<?= e($genderKey) ?>">
+                        <input name="q" value="<?= e(request_str('lane') === $genderKey ? $listSearch : '') ?>" placeholder="Search name or student ID" autocomplete="off">
+                        <button class="btn btn-ghost" type="submit">Search</button>
+                    </form>
+                    <form method="post">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="action" value="assign_gender">
+                        <input type="hidden" name="event_id" value="<?= (int) $event['id'] ?>">
+                        <input type="hidden" name="gender" value="<?= e($genderKey) ?>">
+                        <?php
+                        $laneActive = request_str('lane') === $genderKey && $listSearch !== '';
+                        $laneRows = $laneActive ? $listSearchRows : [];
+                        ?>
+                        <?php if ($laneActive && !$laneRows): ?>
+                            <p class="muted">No students matched.</p>
+                        <?php elseif ($laneRows): ?>
+                            <div class="culture-student-pick">
+                                <?php foreach ($laneRows as $stu): ?>
+                                    <label class="culture-pick-card">
+                                        <input type="checkbox" name="student_ids[]" value="<?= (int) $stu['id'] ?>">
+                                        <span class="culture-pick-main">
+                                            <strong><?= e($stu['student_name']) ?></strong>
+                                            <span class="muted"><?= e($stu['student_code'] ?: 'No ID') ?></span>
+                                        </span>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+                            <button class="btn" type="submit">Add to <?= e($genderTitle) ?></button>
+                        <?php else: ?>
+                            <p class="muted">Search the class roster, then add selected students here.</p>
+                        <?php endif; ?>
+                    </form>
+                    <?php
+                    $lanePeople = $genderKey === 'male' ? $maleMembers : $femaleMembers;
+                    ?>
+                    <div class="culture-lane-people">
+                        <p class="section-label"><?= count($lanePeople) ?> in this Culture Day</p>
+                        <?php if (!$lanePeople): ?>
+                            <p class="muted">None yet.</p>
+                        <?php else: ?>
+                            <ul>
+                                <?php foreach ($lanePeople as $p): ?>
+                                    <li>
+                                        <strong><?= e($p['student_name']) ?></strong>
+                                        <span class="muted"><?= e($p['student_code'] ?: '') ?><?= !empty($p['group_name']) ? ' · ' . e($p['group_name']) : '' ?></span>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php endif; ?>
+                    </div>
+                </section>
+                <?php endforeach; ?>
+            </div>
+
+            <?php if ($unknownMembers): ?>
+            <div class="culture-gender-unknown">
+                <h3>Gender not set</h3>
+                <p class="muted"><?= count($unknownMembers) ?> Culture Day member<?= count($unknownMembers) === 1 ? '' : 's' ?> still need a gender. Move them into Male or Female.</p>
+                <div class="culture-unknown-grid">
+                    <?php foreach ($unknownMembers as $p): ?>
+                        <article class="culture-unknown-card">
+                            <div>
+                                <strong><?= e($p['student_name']) ?></strong>
+                                <p class="muted"><?= e($p['student_code'] ?: 'No ID') ?><?= !empty($p['group_name']) ? ' · ' . e($p['group_name']) : '' ?></p>
+                            </div>
+                            <div class="row-actions">
+                                <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="assign_gender"><input type="hidden" name="event_id" value="<?= (int) $event['id'] ?>"><input type="hidden" name="gender" value="male"><input type="hidden" name="student_ids[]" value="<?= (int) $p['student_id'] ?>"><button class="btn btn-sm btn-ghost" type="submit">Male</button></form>
+                                <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="assign_gender"><input type="hidden" name="event_id" value="<?= (int) $event['id'] ?>"><input type="hidden" name="gender" value="female"><input type="hidden" name="student_ids[]" value="<?= (int) $p['student_id'] ?>"><button class="btn btn-sm btn-ghost" type="submit">Female</button></form>
+                            </div>
+                        </article>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+        </div>
     <?php endif; ?>
 
-    <?php if ($lists === []): ?>
-        <p class="muted">No cultures to list yet.</p>
-    <?php else: foreach ($lists as $culture): ?>
-        <section class="culture-list-block">
-            <h3><?= e($culture['name']) ?></h3>
-            <p class="muted">
-                <?= (int) $culture['group_count'] ?> groups ·
-                <?= (int) $culture['student_count'] ?> unique students ·
-                <?= (int) $culture['male_count'] ?> male ·
-                <?= (int) $culture['female_count'] ?> female ·
-                <?= (int) $culture['unknown_count'] ?> not set / unverified
-            </p>
-            <p class="muted">Groups: <?= e(implode(', ', array_map(static fn(array $g): string => $g['name'], $culture['groups']))) ?></p>
+    <div class="<?= $isPrint ? '' : 'panel' ?>">
+        <?php if (!$isPrint): ?>
+            <h2>Lists by culture</h2>
+            <p class="muted">After gender is set above, each culture shows Male and Female side by side.</p>
+        <?php endif; ?>
 
-            <?php
-            $renderGenderBlock = static function (string $title, array $people): void {
-                echo '<h4>' . e($title) . '</h4>';
-                if ($people === []) {
-                    echo '<p class="muted">None.</p>';
-                    return;
-                }
-                $byGroup = [];
-                foreach ($people as $p) {
-                    $byGroup[$p['group_name']][] = $p;
-                }
-                foreach ($byGroup as $gName => $rows) {
-                    echo '<p><strong>' . e($gName) . '</strong></p><ul>';
-                    foreach ($rows as $p) {
-                        echo '<li>' . e($p['name']);
-                        if ($p['code'] !== '') {
-                            echo ' <span class="muted">· ' . e($p['code']) . '</span>';
+        <?php if ($lists === []): ?>
+            <p class="muted">No cultures to list yet. Enter group papers first.</p>
+        <?php else: foreach ($lists as $culture): ?>
+            <section class="culture-list-card">
+                <header class="culture-list-card-head">
+                    <div>
+                        <h3><?= e($culture['name']) ?></h3>
+                        <p class="muted">
+                            <?= (int) $culture['group_count'] ?> groups ·
+                            <?= (int) $culture['student_count'] ?> students ·
+                            <?= (int) $culture['male_count'] ?> male ·
+                            <?= (int) $culture['female_count'] ?> female
+                            <?php if ((int) $culture['unknown_count'] > 0): ?>
+                                · <?= (int) $culture['unknown_count'] ?> not set
+                            <?php endif; ?>
+                        </p>
+                    </div>
+                </header>
+                <div class="culture-list-split">
+                    <?php
+                    $renderModernGender = static function (string $title, string $key, array $people): void {
+                        echo '<div class="culture-list-col culture-list-col-' . e($key) . '">';
+                        echo '<h4>' . e($title) . ' <span>' . count($people) . '</span></h4>';
+                        if ($people === []) {
+                            echo '<p class="muted">None.</p></div>';
+                            return;
                         }
-                        echo '</li>';
-                    }
-                    echo '</ul>';
-                }
-            };
-            $renderGenderBlock('Male', $culture['male']);
-            $renderGenderBlock('Female', $culture['female']);
-            $renderGenderBlock('Gender not set or unverified', $culture['unknown']);
-            ?>
-        </section>
-    <?php endforeach; endif; ?>
+                        $byGroup = [];
+                        foreach ($people as $p) {
+                            $byGroup[(string) ($p['group_name'] ?? 'Group')][] = $p;
+                        }
+                        foreach ($byGroup as $gName => $rows) {
+                            echo '<p class="culture-list-group">' . e($gName) . '</p><ul>';
+                            foreach ($rows as $p) {
+                                echo '<li><strong>' . e((string) ($p['name'] ?? '')) . '</strong>';
+                                if (($p['code'] ?? '') !== '') {
+                                    echo '<span class="muted">' . e((string) $p['code']) . '</span>';
+                                }
+                                echo '</li>';
+                            }
+                            echo '</ul>';
+                        }
+                        echo '</div>';
+                    };
+                    $renderModernGender('Male', 'male', $culture['male']);
+                    $renderModernGender('Female', 'female', $culture['female']);
+                    ?>
+                </div>
+                <?php if ($culture['unknown'] !== []): ?>
+                    <div class="culture-list-unknown">
+                        <h4>Not set <span><?= count($culture['unknown']) ?></span></h4>
+                        <ul>
+                            <?php foreach ($culture['unknown'] as $p): ?>
+                                <li>
+                                    <strong><?= e((string) ($p['name'] ?? '')) ?></strong>
+                                    <span class="muted"><?= e((string) ($p['group_name'] ?? '')) ?><?= ($p['code'] ?? '') !== '' ? ' · ' . e((string) $p['code']) : '' ?></span>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                <?php endif; ?>
+            </section>
+        <?php endforeach; endif; ?>
+    </div>
 </div>
 <?php endif; ?>
 <?php endif; ?>

@@ -59,8 +59,8 @@ function admin_header(string $title, string $active = 'index', string $bodyClass
     <title><?= e($title) ?> · <?= e(class_name()) ?> <?= e(t('admin.brand')) ?></title>
     <link rel="icon" href="<?= e(url('assets/images/favicon.svg')) ?>" type="image/svg+xml">
     <?php site_font_links(); ?>
-    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=65">
-    <link rel="stylesheet" href="<?= e(url('assets/css/admin.css')) ?>?v=43">
+    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=66">
+    <link rel="stylesheet" href="<?= e(url('assets/css/admin.css')) ?>?v=44">
 </head>
 <body class="<?= e($bodyClass) ?>">
     <a class="skip-link" href="#main"><?= e(t('skip')) ?></a>

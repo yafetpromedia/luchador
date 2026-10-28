@@ -170,44 +170,45 @@ $filterMatch = static function (array $culture) use ($searchNeedle): bool {
             continue;
         }
         ?>
-        <div class="culture-list-block">
-            <h3><?= e($culture['name']) ?></h3>
-            <p class="muted">
-                <?= (int) $culture['group_count'] ?> groups ·
-                <?= (int) $culture['student_count'] ?> students ·
-                <?= (int) $culture['male_count'] ?> male ·
-                <?= (int) $culture['female_count'] ?> female ·
-                <?= (int) $culture['unknown_count'] ?> not set / unverified
-            </p>
-            <?php
-            $blocks = [
-                'Male' => $culture['male'],
-                'Female' => $culture['female'],
-                'Gender not set or unverified' => $culture['unknown'],
-            ];
-            foreach ($blocks as $title => $people):
-            ?>
-                <h4><?= e($title) ?></h4>
-                <?php if (!$people): ?>
-                    <p class="muted">None.</p>
-                <?php else: ?>
-                    <?php
-                    $byGroup = [];
-                    foreach ($people as $p) {
-                        $byGroup[$p['group_name']][] = $p;
-                    }
-                    foreach ($byGroup as $gName => $rows):
-                    ?>
-                        <p><strong><?= e($gName) ?></strong></p>
-                        <ul>
-                            <?php foreach ($rows as $p): ?>
-                                <li><?= e($p['name']) ?><?php if ($p['code'] !== ''): ?> <span class="muted">· <?= e($p['code']) ?></span><?php endif; ?></li>
+        <section class="culture-list-card">
+            <header class="culture-list-card-head">
+                <h3><?= e($culture['name']) ?></h3>
+                <p class="muted">
+                    <?= (int) $culture['group_count'] ?> groups ·
+                    <?= (int) $culture['student_count'] ?> students ·
+                    <?= (int) $culture['male_count'] ?> male ·
+                    <?= (int) $culture['female_count'] ?> female
+                </p>
+            </header>
+            <div class="culture-list-split">
+                <?php foreach (['male' => ['Male', $culture['male']], 'female' => ['Female', $culture['female']]] as $key => [$title, $people]): ?>
+                    <div class="culture-list-col culture-list-col-<?= e($key) ?>">
+                        <h4><?= e($title) ?> <span><?= count($people) ?></span></h4>
+                        <?php if (!$people): ?>
+                            <p class="muted">None.</p>
+                        <?php else: ?>
+                            <?php
+                            $byGroup = [];
+                            foreach ($people as $p) {
+                                $byGroup[$p['group_name']][] = $p;
+                            }
+                            foreach ($byGroup as $gName => $rows):
+                            ?>
+                                <p class="culture-list-group"><?= e($gName) ?></p>
+                                <ul>
+                                    <?php foreach ($rows as $p): ?>
+                                        <li>
+                                            <strong><?= e($p['name']) ?></strong>
+                                            <?php if ($p['code'] !== ''): ?><span class="muted"><?= e($p['code']) ?></span><?php endif; ?>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
                             <?php endforeach; ?>
-                        </ul>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            <?php endforeach; ?>
-        </div>
+                        <?php endif; ?>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </section>
     <?php endforeach; endif; ?>
 </section>
 <?php endif; ?>

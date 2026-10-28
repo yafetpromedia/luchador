@@ -58,6 +58,41 @@ function student_gender_of(array $row): string
     return 'unverified';
 }
 
+/** Record gender on the student (uniforms) row. Never inferred from names. */
+function set_student_gender_value(int $studentId, string $gender): void
+{
+    if ($studentId < 1) {
+        throw new InvalidArgumentException('Choose a student.');
+    }
+    if (!column_exists(db(), 'uniforms', 'gender')) {
+        throw new InvalidArgumentException('Gender field is not available yet. Refresh and try again.');
+    }
+    $gender = strtolower(trim($gender));
+    if (!in_array($gender, ['male', 'female'], true)) {
+        throw new InvalidArgumentException('Choose male or female.');
+    }
+    $student = student_by_id($studentId);
+    if (!$student) {
+        throw new InvalidArgumentException('Student not found.');
+    }
+    db()->prepare('UPDATE uniforms SET gender = ? WHERE id = ?')->execute([$gender, $studentId]);
+}
+
+/** Assign many students to male or female. Returns how many rows were updated. */
+function assign_students_gender(array $studentIds, string $gender): int
+{
+    $ids = array_values(array_unique(array_filter(array_map('intval', $studentIds), static fn(int $id): bool => $id > 0)));
+    if ($ids === []) {
+        throw new InvalidArgumentException('Select at least one student.');
+    }
+    $updated = 0;
+    foreach ($ids as $id) {
+        set_student_gender_value($id, $gender);
+        $updated++;
+    }
+    return $updated;
+}
+
 function student_gender_label(string $key): string
 {
     return match ($key) {
