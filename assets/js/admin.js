@@ -573,14 +573,18 @@
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;');
 
-        const cardHtml = (student, { checked = false, removable = false } = {}) => {
+        const cardHtml = (student, { checked = false, removable = false, busy = false } = {}) => {
             const meta = [student.code || 'No ID', student.section].filter(Boolean).join(' · ');
+            const busyNote = busy && student.busyGroup
+                ? 'Already in ' + student.busyGroup
+                : (removable ? 'Uncheck to remove' : '');
             return (
-                '<label class="culture-pick-card">' +
-                '<input type="checkbox" ' + (checked ? 'checked' : '') + ' data-culture-id="' + Number(student.id) + '">' +
+                '<label class="culture-pick-card' + (busy ? ' is-busy' : '') + '">' +
+                '<input type="checkbox" ' + (checked ? 'checked' : '') + (busy ? ' disabled' : '') +
+                ' data-culture-id="' + Number(student.id) + '">' +
                 '<span class="culture-pick-main"><strong>' + escapeHtml(student.name) + '</strong>' +
                 '<span class="muted">' + escapeHtml(meta) + '</span></span>' +
-                (removable ? '<span class="muted">Uncheck to remove</span>' : '') +
+                (busyNote ? '<span class="muted">' + escapeHtml(busyNote) + '</span>' : '') +
                 '</label>'
             );
         };
@@ -642,6 +646,7 @@
                 }
                 const matches = roster.filter((s) => {
                     if (taken.has(Number(s.id))) return false;
+                    if (s.busyGroup) return false;
                     const hay = ((s.name || '') + ' ' + (s.code || '') + ' ' + (s.section || '')).toLowerCase();
                     return hay.includes(query);
                 }).slice(0, 40);
@@ -670,6 +675,7 @@
 
         const addStudent = (student, toLane) => {
             if (!student || (toLane !== 'male' && toLane !== 'female')) return;
+            if (student.busyGroup) return;
             removeId(student.id);
             selected[toLane].push({
                 id: Number(student.id),

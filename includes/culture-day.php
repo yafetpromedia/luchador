@@ -339,6 +339,27 @@ function culture_day_event_members(int $eventId): array
     return $stmt->fetchAll();
 }
 
+/** Map of student_id => ['group_id' => int, 'group_name' => string] for an event. */
+function culture_day_student_group_map(int $eventId, ?int $exceptGroupId = null): array
+{
+    $map = [];
+    foreach (culture_day_event_members($eventId) as $row) {
+        $gid = (int) ($row['group_id'] ?? 0);
+        if ($exceptGroupId !== null && $gid === $exceptGroupId) {
+            continue;
+        }
+        $sid = (int) ($row['student_id'] ?? 0);
+        if ($sid < 1) {
+            continue;
+        }
+        $map[$sid] = [
+            'group_id' => $gid,
+            'group_name' => (string) ($row['group_name'] ?? 'another group'),
+        ];
+    }
+    return $map;
+}
+
 function save_culture_day_group(int $eventId, array $src, ?int $groupId = null): array
 {
     $event = culture_day_event_by_id($eventId);
@@ -419,6 +440,24 @@ function save_culture_day_group(int $eventId, array $src, ?int $groupId = null):
             throw new InvalidArgumentException('One or more student IDs are invalid.');
         }
 
+        $busy = culture_day_student_group_map($eventId, $groupId);
+        $conflicts = [];
+        foreach ($memberIds as $sid) {
+            if (!isset($busy[$sid])) {
+                continue;
+            }
+            $stu = student_by_id($sid);
+            $conflicts[] = ($stu['student_name'] ?? ('Student #' . $sid))
+                . ' is already in ' . $busy[$sid]['group_name'];
+        }
+        if ($conflicts !== []) {
+            throw new InvalidArgumentException(
+                'Each student can only be in one group. ' . $conflicts[0]
+                . (count($conflicts) > 1 ? ' (+' . (count($conflicts) - 1) . ' more)' : '')
+                . '.'
+            );
+        }
+
         foreach ($maleIds as $sid) {
             set_student_gender_value($sid, 'male');
         }
@@ -430,8 +469,15 @@ function save_culture_day_group(int $eventId, array $src, ?int $groupId = null):
         $insert = $pdo->prepare(
             'INSERT INTO culture_day_members (event_id, group_id, student_id) VALUES (?,?,?)'
         );
-        foreach ($memberIds as $sid) {
-            $insert->execute([$eventId, $groupId, $sid]);
+        try {
+            foreach ($memberIds as $sid) {
+                $insert->execute([$eventId, $groupId, $sid]);
+            }
+        } catch (PDOException $e) {
+            if ((int) ($e->errorInfo[1] ?? 0) === 1062) {
+                throw new InvalidArgumentException('Each student can only be in one group for this event.');
+            }
+            throw $e;
         }
         log_audit('culture_day.members_save', 'culture_day_group', $groupId, $name . ' · ' . count($memberIds) . ' members');
         $pdo->commit();

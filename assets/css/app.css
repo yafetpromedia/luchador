@@ -4132,6 +4132,12 @@ a.interact-link:hover { border-color: #111113; }
     cursor: pointer;
 }
 .culture-pick-card:hover { border-color: #111; }
+.culture-pick-card.is-busy {
+    opacity: 0.55;
+    cursor: not-allowed;
+    background: #f7f5f1;
+}
+.culture-pick-card.is-busy:hover { border-color: #e7e3db; }
 .culture-pick-main { display: grid; gap: 0.15rem; }
 .culture-gender-tag {
     font-size: 0.72rem;

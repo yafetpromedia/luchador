@@ -300,13 +300,17 @@ foreach ($currentMembers as $m) {
         $unknownMembers[] = $m;
     }
 }
+$busyMap = culture_day_student_group_map((int) $event['id'], $group ? (int) $group['id'] : null);
 $rosterPayload = [];
 foreach (fetch_students(['sort' => 'name']) as $stu) {
+    $sid = (int) $stu['id'];
+    $busy = $busyMap[$sid] ?? null;
     $rosterPayload[] = [
-        'id' => (int) $stu['id'],
+        'id' => $sid,
         'name' => (string) ($stu['student_name'] ?? ''),
         'code' => (string) ($stu['student_code'] ?? ''),
         'section' => !empty($stu['section']) ? class_section_label((string) $stu['section']) : '',
+        'busyGroup' => $busy ? (string) $busy['group_name'] : '',
     ];
 }
 $initialSelected = [
@@ -353,7 +357,7 @@ $initialSelected = [
             data-selected="<?= e(json_encode($initialSelected, JSON_UNESCAPED_UNICODE)) ?>"
         >
             <p class="section-label">Students by gender</p>
-            <p class="muted">Search without reloading — your group name, culture, notes, and checked students stay. Add into Male or Female, then Save group.</p>
+            <p class="muted">Search without reloading — your group name, culture, notes, and checked students stay. Each student can only be in one group for this event.</p>
             <div class="culture-roster-search">
                 <input type="search" data-culture-live-search placeholder="Search name or student ID" autocomplete="off">
                 <button class="btn" type="button" data-culture-live-search-btn>Search</button>

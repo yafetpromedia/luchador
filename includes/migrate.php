@@ -878,9 +878,31 @@ function migrate_culture_day(PDO $pdo): void
             UNIQUE KEY uq_culture_day_group_student (group_id, student_id),
             INDEX idx_culture_day_members_event (event_id),
             INDEX idx_culture_day_members_student (student_id),
+            UNIQUE KEY uq_culture_day_event_student (event_id, student_id),
             INDEX idx_culture_day_members_group (group_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
+
+    // Existing installs may only have the per-group unique key.
+    if (table_exists($pdo, 'culture_day_members')) {
+        try {
+            $pdo->exec(
+                'DELETE m1 FROM culture_day_members m1
+                 INNER JOIN culture_day_members m2
+                   ON m1.event_id = m2.event_id
+                  AND m1.student_id = m2.student_id
+                  AND m1.id > m2.id'
+            );
+        } catch (Throwable $e) {
+            // Ignore cleanup failures; index add may still succeed if no duplicates.
+        }
+        add_index_if_missing(
+            $pdo,
+            'culture_day_members',
+            'uq_culture_day_event_student',
+            'CREATE UNIQUE INDEX uq_culture_day_event_student ON culture_day_members (event_id, student_id)'
+        );
+    }
 }
 
 function migrate_gallery_downloads(PDO $pdo): void
