@@ -123,6 +123,79 @@ function generate_missing_student_accounts(): array
     return $created;
 }
 
+/**
+ * Keep the person as a student login, and grant committee (admin) permissions on that same account.
+ * Creates the student login first when the roster row has none yet.
+ *
+ * @return array{user_id:int,student_id:int,created_login:bool,credentials:?array,full_name:string,username:string}
+ */
+function link_student_as_committee(int $studentId, array $permissions): array
+{
+    $student = student_by_id($studentId);
+    if (!$student) {
+        throw new InvalidArgumentException('Student record not found.');
+    }
+    $permissions = sanitize_permission_list($permissions, 'student');
+    $permissions = array_values(array_diff($permissions, student_permissions()));
+    if ($permissions === []) {
+        throw new InvalidArgumentException('Choose at least one admin permission (beyond the normal student portal) for this student.');
+    }
+
+    $createdLogin = false;
+    $credentials = null;
+    $userId = student_account_id($studentId);
+    if ($userId === null) {
+        $created = create_student_user_account($student);
+        $userId = (int) $created['user_id'];
+        $createdLogin = true;
+        $credentials = $created;
+    }
+
+    $user = fetch_user_by_id($userId);
+    if (!$user || ($user['role'] ?? '') !== 'student') {
+        throw new InvalidArgumentException('That login is not a student account.');
+    }
+
+    save_user_permissions($userId, $permissions);
+    $fresh = fetch_user_by_id($userId);
+    return [
+        'user_id' => $userId,
+        'student_id' => $studentId,
+        'created_login' => $createdLogin,
+        'credentials' => $credentials,
+        'full_name' => (string) (($fresh['full_name'] ?? '') ?: ($student['student_name'] ?? '')),
+        'username' => (string) (($fresh['username'] ?? '') ?: ($credentials['username'] ?? '')),
+    ];
+}
+
+/** Student logins that already have extra committee permissions. */
+function student_officer_accounts(): array
+{
+    if (!table_exists(db(), 'user_permissions') || !column_exists(db(), 'users', 'student_id')) {
+        return [];
+    }
+    $studentPerms = student_permissions();
+    $placeholders = implode(',', array_fill(0, count($studentPerms), '?'));
+    $sql = 'SELECT u.id, u.username, u.full_name, u.is_active, u.last_login_at, u.student_id,
+                   s.student_name, s.student_code,
+                   COUNT(up.permission) AS permission_count
+            FROM users u
+            INNER JOIN uniforms s ON s.id = u.student_id
+            INNER JOIN user_permissions up ON up.user_id = u.id
+            WHERE u.role = \'student\'';
+    $params = [];
+    if ($placeholders !== '') {
+        $sql .= ' AND up.permission NOT IN (' . $placeholders . ')';
+        $params = $studentPerms;
+    }
+    $sql .= ' GROUP BY u.id, u.username, u.full_name, u.is_active, u.last_login_at, u.student_id, s.student_name, s.student_code
+              HAVING permission_count > 0
+              ORDER BY s.student_name ASC';
+    $stmt = db()->prepare($sql);
+    $stmt->execute($params);
+    return $stmt->fetchAll();
+}
+
 function set_one_time_credentials(array $rows, string $notice): void
 {
     $_SESSION['one_time_credentials'] = [

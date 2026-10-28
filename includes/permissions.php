@@ -278,22 +278,68 @@ function permissions_for_role_slug(string $slug): array
     return $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
 }
 
+function assigned_user_permissions(int $userId): array
+{
+    if ($userId < 1 || !table_exists(db(), 'user_permissions')) {
+        return [];
+    }
+    $stmt = db()->prepare('SELECT permission FROM user_permissions WHERE user_id = ?');
+    $stmt->execute([$userId]);
+    return array_values(array_diff(
+        $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [],
+        super_admin_only_permissions()
+    ));
+}
+
+/** Extra admin permissions granted to a student officer (beyond the student portal set). */
+function student_officer_permissions(int $userId): array
+{
+    $studentSet = array_flip(student_permissions());
+    $extra = [];
+    foreach (assigned_user_permissions($userId) as $permission) {
+        if (!isset($studentSet[$permission])) {
+            $extra[] = $permission;
+        }
+    }
+    return array_values(array_unique($extra));
+}
+
+function is_student_officer(?array $user = null): bool
+{
+    $user = $user ?? current_user();
+    if ($user === null || ($user['role'] ?? '') !== 'student') {
+        return false;
+    }
+    return student_officer_permissions((int) ($user['id'] ?? 0)) !== [];
+}
+
+/** True when this login may use the admin portal (staff role or student officer). */
+function has_staff_portal_access(?array $user = null): bool
+{
+    $user = $user ?? current_user();
+    if ($user === null || empty($user['is_active'])) {
+        return false;
+    }
+    if (($user['role'] ?? '') !== 'student') {
+        return true;
+    }
+    return is_student_officer($user);
+}
+
 function user_permissions_for(int $userId, string $role = 'committee'): array
 {
     if ($role === 'super_admin') {
         return all_permissions();
     }
     if ($role === 'student') {
-        return student_permissions();
+        $merged = student_permissions();
+        foreach (assigned_user_permissions($userId) as $permission) {
+            $merged[] = $permission;
+        }
+        return array_values(array_unique($merged));
     }
     if ($role === 'committee') {
-        $assigned = [];
-        if (table_exists(db(), 'user_permissions')) {
-            $stmt = db()->prepare('SELECT permission FROM user_permissions WHERE user_id = ?');
-            $stmt->execute([$userId]);
-            $assigned = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
-        }
-        $assigned = array_values(array_diff($assigned, super_admin_only_permissions()));
+        $assigned = assigned_user_permissions($userId);
         if (!in_array('dashboard.view', $assigned, true)) {
             $assigned[] = 'dashboard.view';
         }
@@ -383,7 +429,11 @@ function require_manage_on_post(string $permission): void
 
 function sanitize_permission_list(array $posted, string $role): array
 {
-    if ($role === 'super_admin' || $role === 'student') {
+    if ($role === 'super_admin') {
+        return [];
+    }
+    // Student officers keep role=student but store grantable admin permissions the same way as committee.
+    if ($role !== 'committee' && $role !== 'student') {
         return [];
     }
     $allowed = grantable_permissions();
@@ -394,7 +444,9 @@ function sanitize_permission_list(array $posted, string $role): array
             $clean[] = $permission;
         }
     }
-    $clean[] = 'dashboard.view';
+    if ($role === 'committee') {
+        $clean[] = 'dashboard.view';
+    }
     return array_values(array_unique($clean));
 }
 

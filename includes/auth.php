@@ -84,11 +84,15 @@ function post_login_path(?array $user, string $requested = ''): string
     if (!empty($user['must_change_password']) || !empty($_SESSION['must_change_password'])) {
         return $isStudent ? 'student/account.php' : 'admin/settings.php';
     }
+    $fallback = $isStudent ? 'student/dashboard.php' : 'admin/index.php';
+    $next = safe_redirect_path($requested, $fallback);
     if ($isStudent) {
+        // Student officers may open admin when they asked for it; otherwise stay on the student portal.
+        if (str_starts_with($next, 'admin/') && has_staff_portal_access($user)) {
+            return $next;
+        }
         return 'student/dashboard.php';
     }
-    $fallback = 'admin/index.php';
-    $next = safe_redirect_path($requested, $fallback);
     if (str_starts_with($next, 'student/')) {
         return $fallback;
     }
@@ -120,7 +124,7 @@ function require_login(): void
 function require_staff(): void
 {
     require_login();
-    if (is_student()) {
+    if (!has_staff_portal_access()) {
         deny_access();
     }
 }

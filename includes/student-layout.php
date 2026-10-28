@@ -93,6 +93,9 @@ function student_header(string $title, string $active = 'dashboard', bool $home 
                 <?php endforeach; ?>
             </nav>
             <div class="student-sidebar-foot">
+                <?php if (function_exists('has_staff_portal_access') && has_staff_portal_access()): ?>
+                    <a href="<?= e(url('admin/index.php')) ?>"><?= icon('shield', 16) ?> Committee admin</a>
+                <?php endif; ?>
                 <a href="<?= e(url('index.php')) ?>"><?= icon('external', 16) ?> <?= e(t('nav.public_site')) ?></a>
                 <a href="<?= e(url('logout.php')) ?>"><?= icon('logout', 16) ?> <?= e(t('nav.sign_out')) ?></a>
             </div>
@@ -117,11 +120,14 @@ function student_header(string $title, string $active = 'dashboard', bool $home 
                         <span class="stu-avatar stu-avatar-sm" aria-hidden="true"><?= e($initials) ?></span>
                         <span class="account-menu-copy">
                             <span class="account-menu-name"><?= e($name) ?></span>
-                            <span class="account-menu-role"><?= e(t('student.role')) ?></span>
+                            <span class="account-menu-role"><?= e(function_exists('is_student_officer') && is_student_officer() ? 'Student · Committee' : t('student.role')) ?></span>
                         </span>
                     </summary>
                     <div class="account-menu-panel">
                         <?php if ($code !== ''): ?><p><?= e($code) ?></p><?php endif; ?>
+                        <?php if (function_exists('has_staff_portal_access') && has_staff_portal_access()): ?>
+                            <a href="<?= e(url('admin/index.php')) ?>">Committee admin</a>
+                        <?php endif; ?>
                         <a href="<?= e(url('student/profile.php')) ?>"><?= e(t('nav.profile')) ?></a>
                         <a href="<?= e(url('student/payment.php')) ?>"><?= e(t('nav.pay')) ?></a>
                         <a href="<?= e(url('student/account.php')) ?>"><?= e(t('nav.password')) ?></a>

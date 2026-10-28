@@ -18,10 +18,12 @@ if ($editId) {
 if ($viewId) {
     $view = fetch_user_by_id($viewId);
 }
-if ($edit && ($edit['role'] ?? '') === 'student') {
+$editIsStudentOfficer = $edit && ($edit['role'] ?? '') === 'student' && student_officer_permissions((int) $edit['id']) !== [];
+$viewIsStudentOfficer = $view && ($view['role'] ?? '') === 'student' && student_officer_permissions((int) $view['id']) !== [];
+if ($edit && ($edit['role'] ?? '') === 'student' && !$editIsStudentOfficer) {
     redirect('admin/student-accounts.php');
 }
-if ($view && ($view['role'] ?? '') === 'student') {
+if ($view && ($view['role'] ?? '') === 'student' && !$viewIsStudentOfficer) {
     redirect('admin/student-accounts.php');
 }
 
@@ -39,6 +41,53 @@ if (is_post()) {
             clear_one_time_credentials();
             flash_set('success', 'Temporary credentials were cleared from this screen.');
             redirect('admin/users.php');
+        }
+
+        if ($action === 'link_student') {
+            $studentId = (int) posted('student_id');
+            $permissions = is_array($_POST['permissions'] ?? null) ? $_POST['permissions'] : [];
+            $linked = link_student_as_committee($studentId, $permissions);
+            log_audit('user.link_student_committee', 'user', (int) $linked['user_id'], $linked['full_name']);
+            if (!empty($linked['created_login']) && is_array($linked['credentials'] ?? null)) {
+                set_one_time_credentials([$linked['credentials']], 'Student login created and linked as committee. Print the slip — the temporary password is not stored.');
+            }
+            flash_set(
+                'success',
+                $linked['created_login']
+                    ? 'Student linked as committee. Their student login was created — they stay a student and can also open admin with the permissions you chose.'
+                    : 'Student linked as committee. They keep the same student login and can also open admin with the permissions you chose.'
+            );
+            redirect('admin/users.php?edit=' . (int) $linked['user_id']);
+        }
+
+        if ($action === 'revoke_student_committee') {
+            if (!$target || ($target['role'] ?? '') !== 'student') {
+                throw new InvalidArgumentException('Student committee link not found.');
+            }
+            save_user_permissions((int) $target['id'], []);
+            log_audit('user.revoke_student_committee', 'user', (int) $target['id'], $target['full_name'] ?: $target['username']);
+            flash_set('success', 'Committee access removed. The student login is unchanged.');
+            redirect('admin/users.php');
+        }
+
+        if ($action === 'save_student_officer') {
+            if (!$target || ($target['role'] ?? '') !== 'student') {
+                throw new InvalidArgumentException('Student committee link not found.');
+            }
+            $permissions = array_values(array_diff(
+                sanitize_permission_list(
+                    is_array($_POST['permissions'] ?? null) ? $_POST['permissions'] : [],
+                    'student'
+                ),
+                student_permissions()
+            ));
+            if ($permissions === []) {
+                throw new InvalidArgumentException('Choose at least one admin permission, or revoke access instead.');
+            }
+            save_user_permissions((int) $target['id'], $permissions);
+            log_audit('user.update_student_committee', 'user', (int) $target['id'], $target['full_name'] ?: $target['username']);
+            flash_set('success', 'Committee permissions updated for this student.');
+            redirect('admin/users.php?edit=' . (int) $target['id']);
         }
 
         if ($action === 'deactivate' || $action === 'activate') {
@@ -66,14 +115,23 @@ if (is_post()) {
             db()->prepare('UPDATE users SET password = ?, must_change_password = 1 WHERE id = ?')
                 ->execute([password_hash($temp, PASSWORD_DEFAULT), (int) $target['id']]);
             log_audit('user.password_reset', 'user', (int) $target['id'], $target['full_name'] ?: $target['username']);
+            $code = '';
+            if (($target['role'] ?? '') === 'student' && !empty($target['student_id'])) {
+                $linkedStudent = student_by_id((int) $target['student_id']);
+                $code = (string) ($linkedStudent['student_code'] ?? '');
+            }
             set_one_time_credentials([[
                 'username' => $target['username'],
                 'full_name' => $target['full_name'] ?: $target['username'],
-                'student_code' => '',
+                'student_code' => $code,
                 'password' => $temp,
             ]], 'Temporary password generated. Copy it now — it will not be stored.');
             flash_set('success', 'Password reset. The temporary password is shown once below.');
             redirect('admin/users.php?edit=' . (int) $target['id']);
+        }
+
+        if ($target && ($target['role'] ?? '') === 'student') {
+            throw new InvalidArgumentException('Use the student committee form to change this linked student.');
         }
 
         $fullName = posted('full_name');
@@ -96,7 +154,7 @@ if (is_post()) {
             $role = 'committee';
         }
         if ($role === 'student') {
-            throw new InvalidArgumentException('Create student logins from Student accounts.');
+            throw new InvalidArgumentException('Link a student above instead of creating a separate student role here.');
         }
         if ($role === 'super_admin' && !is_super_admin()) {
             throw new InvalidArgumentException('Only a Super Admin can assign that role.');
@@ -113,9 +171,6 @@ if (is_post()) {
 
         if (username_taken($username, $id)) {
             throw new InvalidArgumentException('That username is already in use.');
-        }
-        if ($target && ($target['role'] ?? '') === 'student') {
-            throw new InvalidArgumentException('Student logins are managed on Student accounts.');
         }
         if ($email !== '') {
             $dupEmail = db()->prepare('SELECT id FROM users WHERE email = ? AND id != ? LIMIT 1');
@@ -208,14 +263,22 @@ $stmt = db()->prepare($sql);
 $stmt->execute($params);
 $users = $stmt->fetchAll();
 
-$editPerms = $edit && $edit['role'] === 'committee'
-    ? user_permissions_for((int) $edit['id'], 'committee')
-    : default_committee_permissions();
+$editPerms = $editIsStudentOfficer
+    ? student_officer_permissions((int) $edit['id'])
+    : ($edit && $edit['role'] === 'committee'
+        ? user_permissions_for((int) $edit['id'], 'committee')
+        : default_committee_permissions());
 $credentials = one_time_credentials();
+$studentOfficers = student_officer_accounts();
+$rosterForLink = fetch_students(['sort' => 'name']);
+$linkDefaultPerms = array_values(array_unique(array_merge(
+    default_committee_permissions(),
+    ['committee.view', 'committee.manage', 'students.view', 'announcements.view', 'events.view']
+)));
 
-admin_header($edit ? 'Edit committee login' : ($view ? 'Committee login' : 'Committee logins'), 'users');
+admin_header($edit ? 'Edit committee access' : ($view ? 'Committee access' : 'Committee logins'), 'users');
 admin_page_head(
-    'Create committee and Super Admin logins here. Student logins are created separately: pick a student on Student accounts, then print their slip.',
+    'Prefer linking a class student as committee — they keep one student login and also get admin access. Separate committee-only logins are optional for people who are not on the roster.',
     [
         '<a class="btn" href="' . e(url('admin/student-accounts.php')) . '">Student accounts</a>',
         '<a class="btn btn-ghost" href="' . e(url('admin/roles.php')) . '">Roles</a>',
@@ -254,7 +317,7 @@ admin_page_head(
     <h2><?= e($view['full_name'] ?: $view['username']) ?></h2>
     <dl class="profile-list">
         <div><dt>Username</dt><dd><?= e($view['username']) ?></dd></div>
-        <div><dt>Role</dt><dd><?= e(role_label((string) $view['role'])) ?></dd></div>
+        <div><dt>Role</dt><dd><?= e($viewIsStudentOfficer ? 'Student · Committee' : role_label((string) $view['role'])) ?></dd></div>
         <div><dt>Status</dt><dd><?= admin_active_badge($view['is_active'] ?? 0) ?></dd></div>
         <div><dt>Last login</dt><dd><?= $view['last_login_at'] ? e(format_when($view['last_login_at'])) : 'Never' ?></dd></div>
     </dl>
@@ -265,8 +328,112 @@ admin_page_head(
 </div>
 <?php endif; ?>
 
+<?php if ($editIsStudentOfficer && $edit): ?>
 <div class="panel">
-    <h2><?= $edit ? 'Update committee login' : 'Add committee login' ?></h2>
+    <h2>Edit student committee link</h2>
+    <p class="muted"><?= e($edit['full_name'] ?: $edit['username']) ?> stays a student. Update which admin tools they can use, or remove committee access.</p>
+    <form method="post" data-loading>
+        <?= csrf_field() ?>
+        <input type="hidden" name="action" value="save_student_officer">
+        <input type="hidden" name="id" value="<?= (int) $edit['id'] ?>">
+        <div class="perm-wrap">
+            <h3>Committee permissions</h3>
+            <?php foreach (grantable_permission_catalog() as $group => $perms): ?>
+                <details class="perm-group" open>
+                    <summary><?= e($group) ?></summary>
+                    <div class="perm-list">
+                        <?php foreach ($perms as $key => $label): ?>
+                            <label class="check">
+                                <input type="checkbox" name="permissions[]" value="<?= e($key) ?>"
+                                    <?= in_array($key, $editPerms, true) ? 'checked' : '' ?>>
+                                <?= e($label) ?>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                </details>
+            <?php endforeach; ?>
+        </div>
+        <div class="form-actions" style="margin-top:1rem">
+            <button class="btn" type="submit">Save permissions</button>
+            <a class="btn btn-ghost" href="<?= e(url('admin/users.php')) ?>">Cancel</a>
+        </div>
+    </form>
+    <form method="post" style="margin-top:0.75rem">
+        <?= csrf_field() ?>
+        <input type="hidden" name="action" value="revoke_student_committee">
+        <input type="hidden" name="id" value="<?= (int) $edit['id'] ?>">
+        <button class="btn btn-danger" type="submit" data-confirm="They keep their student login, but lose admin/committee access." data-confirm-title="Remove committee access?">Remove committee access</button>
+    </form>
+</div>
+<?php elseif (!$edit): ?>
+<div class="panel">
+    <h2>Link a student as committee</h2>
+    <p class="muted">Pick someone from the class roster. They keep one student login — no separate committee username. If they do not have a login yet, one is created. Then choose what they can manage.</p>
+    <?php if (!$rosterForLink): ?>
+        <p class="muted">No students on the roster yet.</p>
+    <?php else: ?>
+    <form method="post" data-loading data-student-picker>
+        <?= csrf_field() ?>
+        <input type="hidden" name="action" value="link_student">
+        <input type="hidden" name="student_id" data-picker-id value="">
+        <div class="form-group" data-picker-search>
+            <label class="req" for="committee-student-q">Find a student</label>
+            <input type="search" id="committee-student-q" data-picker-q placeholder="Type a name or student ID" autocomplete="off">
+        </div>
+        <div class="picker-choice" data-picker-choice hidden>
+            <div>
+                <span>Selected</span>
+                <strong data-picker-name></strong>
+            </div>
+            <button class="btn btn-ghost btn-sm" type="button" data-picker-clear>Change</button>
+        </div>
+        <div class="picker-list" data-picker-list role="listbox" aria-label="Class students">
+            <?php foreach ($rosterForLink as $row): ?>
+                <button
+                    type="button"
+                    class="picker-option"
+                    role="option"
+                    data-id="<?= (int) $row['id'] ?>"
+                    data-name="<?= e($row['student_name']) ?>"
+                    data-search="<?= e(strtolower(trim(($row['student_name'] ?? '') . ' ' . ($row['student_code'] ?? '')))) ?>"
+                >
+                    <strong><?= e($row['student_name']) ?></strong>
+                    <span><?= e(($row['student_code'] ?? '') !== '' ? $row['student_code'] : 'No student ID') ?><?= student_account_id((int) $row['id']) ? ' · has login' : ' · needs login' ?></span>
+                </button>
+            <?php endforeach; ?>
+        </div>
+        <p class="picker-empty muted" data-picker-empty hidden>No matching students.</p>
+
+        <div class="perm-wrap" style="margin-top:1rem">
+            <h3>Committee permissions</h3>
+            <p class="muted">Assign only what this student needs in admin. They still use the student portal with the same login.</p>
+            <?php foreach (grantable_permission_catalog() as $group => $perms): ?>
+                <details class="perm-group" open>
+                    <summary><?= e($group) ?></summary>
+                    <div class="perm-list">
+                        <?php foreach ($perms as $key => $label): ?>
+                            <label class="check">
+                                <input type="checkbox" name="permissions[]" value="<?= e($key) ?>"
+                                    <?= in_array($key, $linkDefaultPerms, true) ? 'checked' : '' ?>>
+                                <?= e($label) ?>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                </details>
+            <?php endforeach; ?>
+        </div>
+        <div class="form-actions" style="margin-top:1rem">
+            <button class="btn" type="submit" data-picker-submit disabled>Link student as committee</button>
+        </div>
+    </form>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
+
+<?php if (!$editIsStudentOfficer): ?>
+<div class="panel">
+    <h2><?= $edit ? 'Update committee login' : 'Add a separate committee login' ?></h2>
+    <p class="muted"><?= $edit ? 'Update this non-student committee or Super Admin login.' : 'Only for people who are not on the class roster. Prefer linking a student above when they are both a student and committee.' ?></p>
     <form method="post" data-loading>
         <?= csrf_field() ?>
         <input type="hidden" name="id" value="<?= e((string) ($edit['id'] ?? '')) ?>">
@@ -296,7 +463,7 @@ admin_page_head(
 
         <div id="permission-fields" class="perm-wrap">
             <h3>Permissions</h3>
-            <p class="muted">Committee members start with no management access. Assign only what they need. Super Admin and Student roles use fixed permissions.</p>
+            <p class="muted">Committee members start with limited access. Assign only what they need.</p>
             <?php foreach (grantable_permission_catalog() as $group => $perms): ?>
                 <details class="perm-group" open>
                     <summary><?= e($group) ?></summary>
@@ -327,6 +494,38 @@ admin_page_head(
         </form>
     <?php endif; ?>
 </div>
+<?php endif; ?>
+
+<?php if (!$edit && !$view): ?>
+<div class="panel">
+    <h2>Students with committee access</h2>
+    <?php if (!$studentOfficers): ?>
+        <p class="muted">No students linked yet. Use “Link a student as committee” above.</p>
+    <?php else: ?>
+    <div class="table-wrap">
+    <table>
+        <thead><tr><th>Student</th><th>Username</th><th>Status</th><th>Last login</th><th></th></tr></thead>
+        <tbody>
+        <?php foreach ($studentOfficers as $row): ?>
+            <tr>
+                <td>
+                    <strong><?= e($row['student_name'] ?: $row['full_name']) ?></strong>
+                    <?php if (!empty($row['student_code'])): ?><div class="muted"><?= e($row['student_code']) ?></div><?php endif; ?>
+                </td>
+                <td><?= e($row['username']) ?></td>
+                <td><?= admin_active_badge($row['is_active'] ?? 0) ?></td>
+                <td><?= !empty($row['last_login_at']) ? e(format_when((string) $row['last_login_at'])) : 'Never' ?></td>
+                <td class="row-actions">
+                    <a class="btn btn-sm btn-ghost" href="?edit=<?= (int) $row['id'] ?>">Edit access</a>
+                </td>
+            </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
+    </div>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
 
 <form class="toolbar panel" method="get">
     <div class="form-group"><label>Search</label><input name="q" value="<?= e($q) ?>" placeholder="Name or username"></div>
@@ -408,6 +607,55 @@ admin_page_head(
     };
     if (role) role.addEventListener('change', sync);
     sync();
+
+    const root = document.querySelector('[data-student-picker]');
+    if (!root) return;
+    const q = root.querySelector('[data-picker-q]');
+    const search = root.querySelector('[data-picker-search]');
+    const list = root.querySelector('[data-picker-list]');
+    const empty = root.querySelector('[data-picker-empty]');
+    const choice = root.querySelector('[data-picker-choice]');
+    const nameEl = root.querySelector('[data-picker-name]');
+    const idEl = root.querySelector('[data-picker-id]');
+    const submit = root.querySelector('[data-picker-submit]');
+    const options = Array.from(root.querySelectorAll('.picker-option'));
+
+    const setSelected = (id, name) => {
+        idEl.value = id || '';
+        if (nameEl) nameEl.textContent = name || '';
+        const has = id !== '';
+        if (choice) choice.hidden = !has;
+        if (list) list.hidden = has;
+        if (search) search.hidden = has;
+        if (q && !has) q.focus();
+        if (submit) submit.disabled = !has;
+        options.forEach((opt) => opt.classList.toggle('is-active', opt.dataset.id === id));
+    };
+
+    const filter = () => {
+        const term = (q.value || '').trim().toLowerCase();
+        let shown = 0;
+        options.forEach((opt) => {
+            const match = term === '' || (opt.dataset.search || '').includes(term);
+            opt.hidden = !match;
+            if (match) shown += 1;
+        });
+        if (empty) empty.hidden = shown > 0;
+        if (list) list.hidden = shown === 0;
+    };
+
+    options.forEach((opt) => {
+        opt.addEventListener('click', () => {
+            setSelected(opt.dataset.id || '', opt.dataset.name || '');
+        });
+    });
+    if (q) q.addEventListener('input', filter);
+    root.querySelector('[data-picker-clear]')?.addEventListener('click', () => {
+        if (q) q.value = '';
+        setSelected('', '');
+        filter();
+    });
+    filter();
 })();
 </script>
 <?php admin_footer(); ?>

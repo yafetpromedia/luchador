@@ -132,7 +132,7 @@ $accounts = db()->query(
 
 admin_header('Student accounts', 'student-accounts');
 admin_page_head(
-    'Pick a student from the class roster, create their login, then print the slip. This never adds or deletes student records. Committee logins are created separately.',
+    'Pick a student from the class roster, create their login, then print the slip. This never adds or deletes student records. To make a student the main committee too, link them from Committee logins — same student account, no second username.',
     [
         '<a class="btn btn-ghost" href="' . e(url('admin/users.php')) . '">Committee logins</a>',
     ]
