@@ -111,7 +111,7 @@ function public_footer(bool $onePage = false): void
             <p class="muted">&copy; <?= current_year() ?> <?= e(class_name()) ?></p>
         </div>
     </footer>
-    <script src="<?= e(url('assets/js/app.js')) ?>?v=16"></script>
+    <script src="<?= e(url('assets/js/app.js')) ?>?v=17"></script>
 </body>
 </html>
     <?php

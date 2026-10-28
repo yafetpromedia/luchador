@@ -29,13 +29,7 @@ student_header('Gallery', 'gallery', lead: 'Class photographs.');
         <p>Published class photos appear here.</p>
     </div>
 <?php else: ?>
-    <div class="masonry" data-download-label="<?= e(t('gallery.download')) ?>">
-        <?php foreach ($items as $item): ?>
-            <a <?= gallery_lightbox_attrs($item) ?>>
-                <img src="<?= e(gallery_photo_url((int) $item['id'], false, 'thumb')) ?>" alt="<?= e($item['title']) ?>" loading="lazy" decoding="async">
-            </a>
-        <?php endforeach; ?>
-    </div>
+    <?= gallery_grid_html($items, false, 12) ?>
 <?php endif; ?>
 
 <?php student_footer('gallery'); ?>

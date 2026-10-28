@@ -170,7 +170,7 @@ function student_footer(string $active = 'dashboard'): void
             </a>
         <?php endforeach; ?>
     </nav>
-    <script src="<?= e(url('assets/js/app.js')) ?>?v=16"></script>
+    <script src="<?= e(url('assets/js/app.js')) ?>?v=17"></script>
 </body>
 </html>
     <?php

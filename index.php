@@ -215,13 +215,7 @@ public_header(site_title(), 'home', setting('hero_message'), true);
                 <button type="button" class="chip<?= $key === 'all' ? ' is-active' : '' ?>" data-gallery-filter="<?= e($key) ?>"><?= e($label) ?></button>
             <?php endforeach; ?>
         </div>
-        <div class="masonry" data-gallery-grid data-download-label="<?= e(t('gallery.download')) ?>">
-            <?php foreach ($photos as $item): ?>
-                <a <?= gallery_lightbox_attrs($item, true) ?>>
-                    <img src="<?= e(gallery_photo_url((int) $item['id'], false, 'thumb')) ?>" alt="<?= e($item['title']) ?>" loading="lazy" decoding="async">
-                </a>
-            <?php endforeach; ?>
-        </div>
+        <?= gallery_grid_html($photos, true, 12) ?>
     </div>
 </section>
 <?php endif; ?>

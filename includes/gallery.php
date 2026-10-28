@@ -103,6 +103,63 @@ function gallery_lightbox_attrs(array $item, bool $includeCategory = false): str
     return $html;
 }
 
+function gallery_photo_tile(array $item, bool $includeCategory = false): string
+{
+    $id = (int) ($item['id'] ?? 0);
+    if ($id < 1 && trim((string) ($item['image_path'] ?? '')) === '') {
+        return '';
+    }
+    $alt = (string) ($item['title'] ?? '');
+    return '<a ' . gallery_lightbox_attrs($item, $includeCategory) . '>'
+        . '<img src="' . e(gallery_photo_url($id, false, 'thumb')) . '" alt="' . e($alt) . '" loading="lazy" decoding="async">'
+        . '</a>';
+}
+
+/**
+ * 4 rows × 3 columns (12 photos). Extra photos open in View more popup.
+ */
+function gallery_grid_html(array $items, bool $includeCategory = false, int $previewLimit = 12): string
+{
+    $tiles = [];
+    foreach ($items as $item) {
+        $tile = gallery_photo_tile($item, $includeCategory);
+        if ($tile !== '') {
+            $tiles[] = $tile;
+        }
+    }
+    if ($tiles === []) {
+        return '';
+    }
+
+    $previewLimit = max(1, $previewLimit);
+    $preview = array_slice($tiles, 0, $previewLimit);
+    $extra = array_slice($tiles, $previewLimit);
+    $extraCount = count($extra);
+
+    $html = '<div class="gallery-grid-wrap" data-download-label="' . e(t('gallery.download')) . '">';
+    $html .= '<div class="masonry" data-gallery-grid>' . implode('', $preview) . '</div>';
+
+    if ($extraCount > 0) {
+        $moreLabel = str_replace('{n}', (string) $extraCount, t('gallery.view_more'));
+        $html .= '<div class="event-album-actions">';
+        $html .= '<button type="button" class="btn btn-ghost" data-album-more-open data-gallery-more-btn>' . e($moreLabel) . '</button>';
+        $html .= '</div>';
+        $html .= '<div class="album-more" hidden data-album-more data-gallery-more role="dialog" aria-modal="true" aria-label="' . e(t('gallery.more_photos')) . '">';
+        $html .= '<div class="album-more-backdrop" data-album-more-close tabindex="-1"></div>';
+        $html .= '<div class="album-more-panel">';
+        $html .= '<div class="album-more-head">';
+        $html .= '<strong>' . e(t('gallery.more_photos')) . '</strong>';
+        $html .= '<button type="button" class="album-more-close" data-album-more-close aria-label="' . e(t('gallery.close_photos')) . '">';
+        $html .= '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+        $html .= '</button></div>';
+        $html .= '<div class="masonry album-more-grid">' . implode('', $extra) . '</div>';
+        $html .= '</div></div>';
+    }
+
+    $html .= '</div>';
+    return $html;
+}
+
 /** Max width/height for display derivatives. Full originals stay for download. */
 function gallery_photo_size_max(string $size): int
 {

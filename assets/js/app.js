@@ -300,7 +300,18 @@
 
     const galleryFilters = document.querySelector('[data-gallery-filters]');
     if (galleryFilters) {
-        const items = Array.from(document.querySelectorAll('[data-gallery-grid] a'));
+        const items = Array.from(document.querySelectorAll('[data-gallery-grid] a, [data-gallery-more] a'));
+        const moreBtn = document.querySelector('[data-gallery-more-btn]');
+        const moreLabelTemplate = moreBtn?.textContent || '';
+        const refreshMoreBtn = () => {
+            if (!moreBtn) return;
+            const hiddenExtras = document.querySelectorAll('[data-gallery-more] a:not(.is-hidden)');
+            const count = hiddenExtras.length;
+            moreBtn.hidden = count < 1;
+            if (count > 0 && moreLabelTemplate.includes('(')) {
+                moreBtn.textContent = moreLabelTemplate.replace(/\(\d+\)/, '(' + count + ')');
+            }
+        };
         galleryFilters.addEventListener('click', (event) => {
             const btn = event.target.closest('[data-gallery-filter]');
             if (!btn) return;
@@ -312,7 +323,9 @@
                 const show = cat === 'all' || item.getAttribute('data-category') === cat;
                 item.classList.toggle('is-hidden', !show);
             });
+            refreshMoreBtn();
         });
+        refreshMoreBtn();
     }
 
     if (document.body.classList.contains('onepage')) {
