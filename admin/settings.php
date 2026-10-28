@@ -121,7 +121,7 @@ admin_page_head('Class identity, contact details, and the public homepage. Chang
             <div class="form-group full">
                 <label>Hero photograph</label>
                 <input type="file" name="hero_image" accept="image/jpeg,image/png,image/webp,image/gif">
-                <p class="muted">Optional. JPG, PNG, WEBP, or GIF up to 5 MB.</p>
+                <p class="muted">Optional. JPG, PNG, WEBP, or GIF up to <?= e(upload_max_label()) ?>.</p>
             </div>
         </div>
         <div class="form-actions" style="margin-top:1rem"><button class="btn" type="submit">Save settings</button></div>

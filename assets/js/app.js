@@ -89,8 +89,10 @@
         lightbox.setAttribute('role', 'dialog');
         lightbox.setAttribute('aria-modal', 'true');
         lightbox.setAttribute('aria-label', 'Photograph');
+        const downloadLabel = document.querySelector('[data-download-label]')?.getAttribute('data-download-label') || 'Download';
         lightbox.innerHTML = '<button class="lightbox-close" type="button" aria-label="Close">' +
             '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>' +
+            '<a class="lightbox-download" hidden download>' + downloadLabel + '</a>' +
             (lightboxLinks.length > 1
                 ? '<button class="lightbox-nav lightbox-prev" type="button" aria-label="Previous">' +
                   '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>' +
@@ -101,6 +103,7 @@
         document.body.appendChild(lightbox);
         const lightboxImg = lightbox.querySelector('img');
         const caption = lightbox.querySelector('.lightbox-caption');
+        const downloadBtn = lightbox.querySelector('.lightbox-download');
         let index = 0;
 
         const show = (i) => {
@@ -109,6 +112,16 @@
             lightboxImg.src = link.getAttribute('href');
             lightboxImg.alt = link.querySelector('img')?.getAttribute('alt') || '';
             caption.textContent = link.getAttribute('data-caption') || '';
+            const downloadHref = link.getAttribute('data-download');
+            if (downloadBtn) {
+                if (downloadHref) {
+                    downloadBtn.href = downloadHref;
+                    downloadBtn.hidden = false;
+                } else {
+                    downloadBtn.removeAttribute('href');
+                    downloadBtn.hidden = true;
+                }
+            }
         };
 
         const closeLightbox = () => {
@@ -138,6 +151,9 @@
         lightbox.querySelector('.lightbox-next')?.addEventListener('click', (event) => {
             event.stopPropagation();
             show(index + 1);
+        });
+        downloadBtn?.addEventListener('click', (event) => {
+            event.stopPropagation();
         });
         document.addEventListener('keydown', (event) => {
             if (!lightbox.classList.contains('is-open')) return;

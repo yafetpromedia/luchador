@@ -12,16 +12,63 @@ function upload_allowed_types(): array
     ];
 }
 
-function store_upload(array $file, string $folder, int $maxBytes = 5242880): array
+function upload_max_bytes(): int
 {
-    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+    return 20 * 1024 * 1024;
+}
+
+function upload_bytes_label(int $bytes): string
+{
+    return (string) (int) round($bytes / (1024 * 1024)) . ' MB';
+}
+
+function upload_max_label(): string
+{
+    return upload_bytes_label(upload_max_bytes());
+}
+
+function uploaded_file_list(string $key): array
+{
+    if (empty($_FILES[$key]) || !isset($_FILES[$key]['name'])) {
+        return [];
+    }
+    $names = $_FILES[$key]['name'];
+    if (!is_array($names)) {
+        return [$_FILES[$key]];
+    }
+    $files = [];
+    foreach ($names as $i => $name) {
+        if ($name === '' || (int) ($_FILES[$key]['error'][$i] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+            continue;
+        }
+        $files[] = [
+            'name' => (string) $name,
+            'type' => (string) ($_FILES[$key]['type'][$i] ?? ''),
+            'tmp_name' => (string) ($_FILES[$key]['tmp_name'][$i] ?? ''),
+            'error' => (int) ($_FILES[$key]['error'][$i] ?? UPLOAD_ERR_NO_FILE),
+            'size' => (int) ($_FILES[$key]['size'][$i] ?? 0),
+        ];
+    }
+    return $files;
+}
+
+function store_upload(array $file, string $folder, int $maxBytes = 0): array
+{
+    $maxBytes = $maxBytes > 0 ? $maxBytes : upload_max_bytes();
+    $tooLarge = 'The file is too large. Maximum size is ' . upload_bytes_label($maxBytes) . '.';
+    $error = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+
+    if ($error === UPLOAD_ERR_NO_FILE) {
         return ['ok' => false, 'error' => 'No file was uploaded.'];
     }
-    if (($file['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
+    if ($error === UPLOAD_ERR_INI_SIZE || $error === UPLOAD_ERR_FORM_SIZE) {
+        return ['ok' => false, 'error' => $tooLarge];
+    }
+    if ($error !== UPLOAD_ERR_OK) {
         return ['ok' => false, 'error' => 'The file could not be uploaded.'];
     }
     if (($file['size'] ?? 0) <= 0 || $file['size'] > $maxBytes) {
-        return ['ok' => false, 'error' => 'The file is too large. Maximum size is 5 MB.'];
+        return ['ok' => false, 'error' => $tooLarge];
     }
 
     $tmp = $file['tmp_name'] ?? '';
@@ -53,7 +100,7 @@ function store_upload(array $file, string $folder, int $maxBytes = 5242880): arr
     if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
         return ['ok' => false, 'error' => 'Upload folder could not be created.'];
     }
-    if ($folder === 'payments') {
+    if (in_array($folder, ['payments', 'gallery'], true)) {
         $deny = $dir . '/.htaccess';
         if (!is_file($deny)) {
             @file_put_contents($deny, "Require all denied\n");

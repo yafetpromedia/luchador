@@ -41,6 +41,8 @@ return [
     'home.updates' => 'Updates',
     'home.announcements' => 'Announcements',
     'home.photos' => 'Photos',
+    'gallery.download' => 'Download',
+    'event.photos' => 'Photos',
     'home.words' => 'Words',
     'home.memories' => 'Memories',
     'home.journey' => 'Journey',

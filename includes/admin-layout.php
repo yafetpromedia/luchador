@@ -58,8 +58,8 @@ function admin_header(string $title, string $active = 'index', string $bodyClass
     <title><?= e($title) ?> · <?= e(class_name()) ?> <?= e(t('admin.brand')) ?></title>
     <link rel="icon" href="<?= e(url('assets/images/favicon.svg')) ?>" type="image/svg+xml">
     <?php site_font_links(); ?>
-    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=59">
-    <link rel="stylesheet" href="<?= e(url('assets/css/admin.css')) ?>?v=41">
+    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=62">
+    <link rel="stylesheet" href="<?= e(url('assets/css/admin.css')) ?>?v=42">
 </head>
 <body class="<?= e($bodyClass) ?>">
     <a class="skip-link" href="#main"><?= e(t('skip')) ?></a>
@@ -162,8 +162,8 @@ function admin_footer(): void
             </div>
         </div>
     </div>
-    <script src="<?= e(url('assets/js/app.js')) ?>?v=12"></script>
-    <script src="<?= e(url('assets/js/admin.js')) ?>?v=9"></script>
+    <script src="<?= e(url('assets/js/app.js')) ?>?v=13"></script>
+    <script src="<?= e(url('assets/js/admin.js')) ?>?v=10"></script>
 </body>
 </html>
     <?php
@@ -199,6 +199,17 @@ function visibility_select(?array $row = null, string $name = 'visibility'): str
         $html .= '<option value="' . e($key) . '"' . ($current === $key ? ' selected' : '') . '>' . e($label) . '</option>';
     }
     $html .= '</select><p class="muted">Class only is the default. Nothing appears on the public website unless you choose Public website.</p></div>';
+    return $html;
+}
+
+function download_for_select(?array $row = null, string $name = 'download_for'): string
+{
+    $current = $row ? gallery_download_for($row) : 'class';
+    $html = '<div class="form-group full"><label>Who can download</label><select name="' . e($name) . '">';
+    foreach (gallery_download_audiences() as $key => $label) {
+        $html .= '<option value="' . e($key) . '"' . ($current === $key ? ' selected' : '') . '>' . e($label) . '</option>';
+    }
+    $html .= '</select><p class="muted">Class only is the default. This controls the download button. Anyone who can see the photo can still screenshot it.</p></div>';
     return $html;
 }
 

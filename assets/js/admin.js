@@ -520,6 +520,10 @@
         updateBar();
     }
 
+    document.querySelectorAll('select[data-autosubmit]').forEach((el) => {
+        el.addEventListener('change', () => el.form?.requestSubmit());
+    });
+
     const reportForm = document.querySelector('[data-report-form]');
     reportForm?.addEventListener('change', (event) => {
         if (event.target.matches('[data-report-refresh]')) {

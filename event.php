@@ -32,6 +32,7 @@ page_intro('Event', $event['title']);
                 </div>
             <?php endif; ?>
             <p><?= nl2br(e((string) $event['description'])) ?></p>
+            <?= event_album_html(event_photos((int) $event['id']), (string) $event['title']) ?>
         </article>
         <aside class="event-aside">
             <p class="eyebrow">Details</p>

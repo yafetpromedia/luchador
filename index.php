@@ -20,7 +20,9 @@ $achievements = table_exists(db(), 'achievements') ? published_achievements(6) :
 $spotlights = published_spotlights(1);
 $members = table_exists(db(), 'committee_members') ? committee_list() : [];
 $heroImage = setting('hero_image');
-$heroBg = $heroImage ?: (($photos[0]['image_path'] ?? '') ?: '');
+$heroBg = $heroImage
+    ? url($heroImage)
+    : (!empty($photos[0]['id']) ? gallery_photo_url((int) $photos[0]['id']) : '');
 $gradDate = setting('graduation_date');
 $showEvents = public_section_is_open('events');
 $showAnnouncements = $announcements !== [];
@@ -50,7 +52,7 @@ public_header(site_title(), 'home', setting('hero_message'), true);
 <section class="cover" id="home">
     <div class="cover-motion<?= $heroBg ? ' has-photo' : '' ?>" aria-hidden="true">
         <?php if ($heroBg): ?>
-            <img class="cover-motion-photo" src="<?= e(url($heroBg)) ?>" alt="">
+            <img class="cover-motion-photo" src="<?= e($heroBg) ?>" alt="">
         <?php endif; ?>
         <span class="cover-motion-mark"><?= e(class_grade()) ?></span>
         <span class="cover-motion-glow cover-motion-glow-a"></span>
@@ -213,10 +215,10 @@ public_header(site_title(), 'home', setting('hero_message'), true);
                 <button type="button" class="chip<?= $key === 'all' ? ' is-active' : '' ?>" data-gallery-filter="<?= e($key) ?>"><?= e($label) ?></button>
             <?php endforeach; ?>
         </div>
-        <div class="masonry" data-gallery-grid>
+        <div class="masonry" data-gallery-grid data-download-label="<?= e(t('gallery.download')) ?>">
             <?php foreach ($photos as $item): ?>
-                <a href="<?= e(url($item['image_path'])) ?>" data-lightbox data-caption="<?= e($item['caption'] ?: $item['title']) ?>" data-category="<?= e($item['category'] ?? 'class') ?>">
-                    <img src="<?= e(url($item['image_path'])) ?>" alt="<?= e($item['title']) ?>" loading="lazy">
+                <a <?= gallery_lightbox_attrs($item, true) ?>>
+                    <img src="<?= e(gallery_photo_url((int) $item['id'])) ?>" alt="<?= e($item['title']) ?>" loading="lazy">
                 </a>
             <?php endforeach; ?>
         </div>

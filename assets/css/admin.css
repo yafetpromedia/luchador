@@ -1335,6 +1335,22 @@
     padding: 0.35rem 0.8rem 0.85rem;
     justify-content: flex-start;
 }
+.mosaic-policy {
+    padding: 0 0.9rem 0.55rem;
+}
+.mosaic-policy label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    margin-bottom: 0.3rem;
+}
+.mosaic-policy select {
+    width: 100%;
+    font-size: 0.85rem;
+}
 
 .people-grid {
     display: grid;

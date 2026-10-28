@@ -65,6 +65,8 @@ student_header('Event', 'events', lead: (string) ($event['title'] ?? 'Class even
             <p><?= nl2br(e((string) $event['description'])) ?></p>
         </div>
     <?php endif; ?>
+
+    <?= event_album_html(event_photos((int) $event['id']), (string) ($event['title'] ?? '')) ?>
 </article>
 
 <?php if ($others): ?>

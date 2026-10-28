@@ -43,6 +43,17 @@ if (is_post()) {
                 'url_public' => 'index.php#gallery',
             ]);
             flash_set('success', $next === 'public' ? 'Photo is now on the public website.' : 'Photo is class-only.');
+        } elseif (posted('action') === 'download_for') {
+            require_permission('gallery.edit');
+            $id = request_int('id');
+            $row = find_gallery_photo($id);
+            if (!$row) {
+                throw new InvalidArgumentException('Photo not found.');
+            }
+            $next = posted_download_for($row);
+            db()->prepare('UPDATE gallery SET download_for = ? WHERE id = ?')->execute([$next, $id]);
+            log_audit('gallery.download', 'gallery', $id, $row['title'] ?? '');
+            flash_set('success', 'Download access updated.');
         } else {
             require_permission('gallery.upload');
             $title = posted('title');
@@ -62,8 +73,9 @@ if (is_post()) {
             }
             $visibility = posted_visibility();
             $published = published_flag_for_visibility($visibility);
-            db()->prepare('INSERT INTO gallery (title, caption, image_path, category, taken_on, published, visibility) VALUES (?,?,?,?,?,?,?)')
-                ->execute([$title, posted('caption'), $upload['path'], $category, posted('taken_on') ?: null, $published, $visibility]);
+            $downloadFor = posted_download_for();
+            db()->prepare('INSERT INTO gallery (title, caption, image_path, category, taken_on, published, visibility, download_for) VALUES (?,?,?,?,?,?,?,?)')
+                ->execute([$title, posted('caption'), $upload['path'], $category, posted('taken_on') ?: null, $published, $visibility, $downloadFor]);
             $newId = (int) db()->lastInsertId();
             log_audit('gallery.upload', 'gallery', $newId, $title);
             notify_if_visibility('draft', $visibility, [
@@ -109,8 +121,13 @@ admin_page_head('Photos stay class-only until you set Public website.');
             </div>
             <div class="form-group full"><label>Caption</label><input name="caption"></div>
             <div class="form-group"><label>Date</label><input type="date" name="taken_on"></div>
-            <div class="form-group"><label>Image</label><input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif" required></div>
+            <div class="form-group">
+                <label>Image</label>
+                <input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif" required>
+                <p class="muted">JPG, PNG, WEBP, or GIF up to <?= e(upload_max_label()) ?>.</p>
+            </div>
             <?= visibility_select() ?>
+            <?= download_for_select() ?>
         </div>
         <div class="form-actions" style="margin-top:1rem"><button class="btn" type="submit">Upload image</button></div>
     </form>
@@ -124,7 +141,7 @@ admin_page_head('Photos stay class-only until you set Public website.');
     <?php foreach ($rows as $row): ?>
         <article class="admin-mosaic-card">
             <div class="admin-mosaic-img">
-                <img src="<?= e(url($row['image_path'])) ?>" alt="<?= e($row['title']) ?>">
+                <img src="<?= e(gallery_photo_url((int) $row['id'])) ?>" alt="<?= e($row['title']) ?>">
             </div>
             <div class="admin-mosaic-body">
                 <div>
@@ -133,7 +150,23 @@ admin_page_head('Photos stay class-only until you set Public website.');
                 </div>
                 <?= admin_visibility_badge($row) ?>
             </div>
+            <?php if (can('gallery.edit')): ?>
+            <form method="post" class="mosaic-policy">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="download_for">
+                <input type="hidden" name="id" value="<?= (int) $row['id'] ?>">
+                <label>Who can download</label>
+                <select name="download_for" data-autosubmit>
+                    <?php foreach (gallery_download_audiences() as $key => $label): ?>
+                        <option value="<?= e($key) ?>"<?= gallery_download_for($row) === $key ? ' selected' : '' ?>><?= e($label) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </form>
+            <?php else: ?>
+            <p class="muted mosaic-policy">Download: <?= e(gallery_download_label($row)) ?></p>
+            <?php endif; ?>
             <div class="row-actions">
+                <a class="btn btn-sm btn-ghost" href="<?= e(gallery_photo_url((int) $row['id'], true)) ?>"><?= icon('download', 16) ?> Download</a>
                 <?php if (can('gallery.edit')): ?>
                 <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="<?= (int) $row['id'] ?>"><button class="btn btn-sm btn-ghost" type="submit"><?= content_visibility_of($row) === 'public' ? 'Make class only' : 'Publish to website' ?></button></form>
                 <?php endif; ?>

@@ -18,6 +18,7 @@ require_once APP_ROOT . '/includes/permissions.php';
 require_once APP_ROOT . '/includes/accounts.php';
 require_once APP_ROOT . '/includes/settings.php';
 require_once APP_ROOT . '/includes/upload.php';
+require_once APP_ROOT . '/includes/gallery.php';
 require_once APP_ROOT . '/includes/icons.php';
 require_once APP_ROOT . '/includes/migrate.php';
 require_once APP_ROOT . '/includes/audit.php';

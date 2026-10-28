@@ -60,6 +60,99 @@ function find_class_event(int $id): ?array
     return find_visible_event($id, 'class');
 }
 
+function event_photos(int $eventId): array
+{
+    if ($eventId < 1 || !table_exists(db(), 'event_photos')) {
+        return [];
+    }
+    $stmt = db()->prepare('SELECT * FROM event_photos WHERE event_id = ? ORDER BY display_order ASC, id ASC');
+    $stmt->execute([$eventId]);
+    return $stmt->fetchAll();
+}
+
+function event_photo_counts(): array
+{
+    if (!table_exists(db(), 'event_photos')) {
+        return [];
+    }
+    $counts = [];
+    foreach (db()->query('SELECT event_id, COUNT(*) AS total FROM event_photos GROUP BY event_id')->fetchAll() as $row) {
+        $counts[(int) $row['event_id']] = (int) $row['total'];
+    }
+    return $counts;
+}
+
+function add_event_photos(int $eventId, array $files): array
+{
+    $added = 0;
+    $errors = [];
+    if ($eventId < 1 || $files === [] || !table_exists(db(), 'event_photos')) {
+        return ['added' => 0, 'errors' => []];
+    }
+    $orderStmt = db()->prepare('SELECT COALESCE(MAX(display_order), 0) FROM event_photos WHERE event_id = ?');
+    $orderStmt->execute([$eventId]);
+    $order = (int) $orderStmt->fetchColumn();
+    $insert = db()->prepare('INSERT INTO event_photos (event_id, image_path, display_order) VALUES (?,?,?)');
+    foreach ($files as $file) {
+        $upload = store_upload($file, 'events');
+        if (!$upload['ok']) {
+            $errors[] = (string) ($upload['error'] ?? 'The file could not be uploaded.');
+            continue;
+        }
+        $order++;
+        $insert->execute([$eventId, $upload['path'], $order]);
+        $added++;
+    }
+    return ['added' => $added, 'errors' => array_values(array_unique($errors))];
+}
+
+function delete_event_photo(int $photoId): ?int
+{
+    if ($photoId < 1 || !table_exists(db(), 'event_photos')) {
+        return null;
+    }
+    $stmt = db()->prepare('SELECT * FROM event_photos WHERE id = ? LIMIT 1');
+    $stmt->execute([$photoId]);
+    $row = $stmt->fetch();
+    if (!$row) {
+        return null;
+    }
+    delete_upload((string) ($row['image_path'] ?? ''));
+    db()->prepare('DELETE FROM event_photos WHERE id = ?')->execute([$photoId]);
+    return (int) $row['event_id'];
+}
+
+function delete_event_photos_for(int $eventId): void
+{
+    foreach (event_photos($eventId) as $photo) {
+        delete_upload((string) ($photo['image_path'] ?? ''));
+    }
+    if (table_exists(db(), 'event_photos')) {
+        db()->prepare('DELETE FROM event_photos WHERE event_id = ?')->execute([$eventId]);
+    }
+}
+
+function event_album_html(array $photos, string $caption = ''): string
+{
+    if ($photos === []) {
+        return '';
+    }
+    $html = '<div class="event-album">';
+    $html .= '<p class="eyebrow">' . e(t('event.photos')) . '</p>';
+    $html .= '<div class="masonry" data-download-label="' . e(t('gallery.download')) . '">';
+    foreach ($photos as $photo) {
+        $src = url((string) ($photo['image_path'] ?? ''));
+        if ($src === '') {
+            continue;
+        }
+        $html .= '<a href="' . e($src) . '" data-lightbox data-caption="' . e($caption) . '" data-download="' . e($src) . '">';
+        $html .= '<img src="' . e($src) . '" alt="" loading="lazy">';
+        $html .= '</a>';
+    }
+    $html .= '</div></div>';
+    return $html;
+}
+
 function event_timing(array $event): string
 {
     if (($event['status'] ?? '') === 'cancelled') {

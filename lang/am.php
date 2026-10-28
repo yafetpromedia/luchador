@@ -41,6 +41,8 @@ return [
     'home.updates' => 'ዝማኔዎች',
     'home.announcements' => 'ማስታወቂያዎች',
     'home.photos' => 'ፎቶዎች',
+    'gallery.download' => 'አውርድ',
+    'event.photos' => 'ፎቶዎች',
     'home.words' => 'ቃላት',
     'home.memories' => 'ትዝታዎች',
     'home.journey' => 'ጉዞ',

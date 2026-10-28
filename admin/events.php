@@ -25,10 +25,20 @@ if (is_post()) {
             $stmt = db()->prepare('SELECT cover_image, title FROM events WHERE id = ?');
             $stmt->execute([$id]);
             $row = $stmt->fetch() ?: [];
+            delete_event_photos_for($id);
             delete_upload((string) ($row['cover_image'] ?? ''));
             db()->prepare('DELETE FROM events WHERE id = ?')->execute([$id]);
             log_audit('event.delete', 'event', $id, $row['title'] ?? '');
             flash_set('success', 'Event deleted.');
+        } elseif (posted('action') === 'delete_photo') {
+            require_permission('events.edit');
+            $eventId = delete_event_photo(request_int('photo_id'));
+            if ($eventId === null) {
+                throw new InvalidArgumentException('Photo not found.');
+            }
+            log_audit('event.photo_delete', 'event', $eventId);
+            flash_set('success', 'Photo removed.');
+            redirect('admin/events.php?edit=' . $eventId);
         } else {
             $id = posted('id') !== '' ? (int) posted('id') : null;
             $cover = $edit['cover_image'] ?? null;
@@ -66,13 +76,22 @@ if (is_post()) {
                 $params[] = $id;
                 db()->prepare('UPDATE events SET title=?, description=?, event_date=?, event_time=?, location=?, cover_image=?, status=?, published=?, visibility=?, category=? WHERE id=?')->execute($params);
                 log_audit('event.save', 'event', $id, $title);
-                flash_set('success', 'Event updated.');
+                $message = 'Event updated.';
             } else {
                 db()->prepare('INSERT INTO events (title, description, event_date, event_time, location, cover_image, status, published, visibility, category) VALUES (?,?,?,?,?,?,?,?,?,?)')->execute($params);
                 $id = (int) db()->lastInsertId();
                 log_audit('event.save', 'event', $id, $title);
-                flash_set('success', 'Event created.');
+                $message = 'Event created.';
             }
+            $album = add_event_photos((int) $id, uploaded_file_list('photos'));
+            if ($album['added'] > 0) {
+                $message .= ' ' . $album['added'] . ($album['added'] === 1 ? ' photo added.' : ' photos added.');
+                log_audit('event.photos', 'event', (int) $id, $title);
+            }
+            if ($album['errors'] !== []) {
+                $message .= ' Some files could not be uploaded.';
+            }
+            flash_set('success', trim($message . ($album['errors'] !== [] ? ' ' . $album['errors'][0] : '')));
             notify_if_visibility($edit ? content_visibility_of($edit) : 'draft', $visibility, [
                 'type' => 'event.published',
                 'title' => 'New class event',
@@ -83,6 +102,10 @@ if (is_post()) {
                 'url_student' => 'student/event.php?id=' . (int) $id,
                 'url_public' => 'index.php#events',
             ]);
+            if (can('events.edit')) {
+                redirect('admin/events.php?edit=' . (int) $id);
+            }
+            redirect('admin/events.php');
         }
     } catch (InvalidArgumentException $e) {
         flash_set('error', $e->getMessage());
@@ -97,10 +120,36 @@ $rows = db()->query('SELECT * FROM events ORDER BY (event_date IS NULL), event_d
 if ($edit && !can('events.edit')) {
     $edit = null;
 }
+$editPhotos = $edit ? event_photos((int) $edit['id']) : [];
+$photoCounts = event_photo_counts();
 $showEventForm = ($edit && can('events.edit')) || (!$edit && can('events.create'));
 admin_header($edit ? 'Edit event' : 'Calendar', 'events');
 admin_page_head('Class dates stay private until you set Public website.');
 ?>
+
+<?php if ($edit && $editPhotos): ?>
+<div class="panel">
+    <h2>Event photos</h2>
+    <p class="muted"><?= count($editPhotos) ?> in this album. Remove any you do not want to keep.</p>
+    <div class="admin-mosaic">
+        <?php foreach ($editPhotos as $photo): ?>
+            <article class="admin-mosaic-card">
+                <div class="admin-mosaic-img">
+                    <img src="<?= e(url((string) $photo['image_path'])) ?>" alt="">
+                </div>
+                <div class="row-actions">
+                    <form method="post">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="action" value="delete_photo">
+                        <input type="hidden" name="photo_id" value="<?= (int) $photo['id'] ?>">
+                        <button class="btn btn-sm btn-danger" type="submit" data-confirm="This photo will be removed from the event." data-confirm-title="Remove photo?">Remove</button>
+                    </form>
+                </div>
+            </article>
+        <?php endforeach; ?>
+    </div>
+</div>
+<?php endif; ?>
 
 <?php if ($showEventForm): ?>
 <div class="panel">
@@ -131,6 +180,11 @@ admin_page_head('Class dates stay private until you set Public website.');
                 </select>
             </div>
             <div class="form-group full"><label>Cover image</label><input type="file" name="cover_image" accept="image/jpeg,image/png,image/webp,image/gif"></div>
+            <div class="form-group full">
+                <label>Event photos</label>
+                <input type="file" name="photos[]" accept="image/jpeg,image/png,image/webp,image/gif" multiple>
+                <p class="muted">Select many at once — 24 or more is fine. JPG, PNG, WEBP, or GIF up to <?= e(upload_max_label()) ?> each. Save, then edit the event to add another batch if needed.</p>
+            </div>
             <?= visibility_select($edit) ?>
         </div>
         <div class="form-actions" style="margin-top:1rem">
@@ -146,12 +200,13 @@ admin_page_head('Class dates stay private until you set Public website.');
 <?php else: ?>
 <div class="table-wrap">
 <table>
-    <thead><tr><th>Title</th><th>Date</th><th>Category</th><th>Status</th><th>Visibility</th><th></th></tr></thead>
+    <thead><tr><th>Title</th><th>Date</th><th>Photos</th><th>Category</th><th>Status</th><th>Visibility</th><th></th></tr></thead>
     <tbody>
     <?php foreach ($rows as $row): ?>
         <tr>
             <td><?= admin_title_cell((string) $row['title'], $row['cover_image'] ?? null) ?></td>
             <td><?= e(format_date($row['event_date'])) ?></td>
+            <td><?= (int) ($photoCounts[(int) $row['id']] ?? 0) ?></td>
             <td><?= e(status_label((string) ($row['category'] ?? 'class'))) ?></td>
             <td><?= admin_status_badge((string) $row['status']) ?></td>
             <td><?= admin_visibility_badge($row) ?></td>

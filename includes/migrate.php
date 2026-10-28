@@ -807,6 +807,40 @@ function migrate_interactions(PDO $pdo): void
     add_index_if_missing($pdo, 'polls', 'idx_polls_decision', 'CREATE INDEX idx_polls_decision ON polls (is_decision, status)');
 }
 
+function migrate_event_photos(PDO $pdo): void
+{
+    if (!table_exists($pdo, 'events')) {
+        return;
+    }
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS event_photos (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            event_id INT NOT NULL,
+            image_path VARCHAR(255) NOT NULL,
+            display_order INT NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_event_photos_event (event_id, display_order)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+}
+
+function migrate_gallery_downloads(PDO $pdo): void
+{
+    if (!table_exists($pdo, 'gallery')) {
+        return;
+    }
+    add_column_if_missing($pdo, 'gallery', 'download_for', "VARCHAR(20) NOT NULL DEFAULT 'class'");
+
+    $dir = APP_ROOT . '/uploads/gallery';
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0755, true);
+    }
+    $deny = $dir . '/.htaccess';
+    if (is_dir($dir) && !is_file($deny)) {
+        @file_put_contents($deny, "Require all denied\n");
+    }
+}
+
 function migrate_class_brand(PDO $pdo): void
 {
     if (!table_exists($pdo, 'settings')) {
@@ -876,6 +910,8 @@ function ensure_schema(): void
         migrate_interactions($pdo);
         migrate_class_brand($pdo);
         migrate_content_visibility($pdo);
+        migrate_gallery_downloads($pdo);
+        migrate_event_photos($pdo);
     } catch (Throwable $e) {
         app_log('ensure_schema: ' . $e->getMessage());
     }

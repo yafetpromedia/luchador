@@ -29,10 +29,10 @@ student_header('Gallery', 'gallery', lead: 'Class photographs.');
         <p>Published class photos appear here.</p>
     </div>
 <?php else: ?>
-    <div class="masonry">
+    <div class="masonry" data-download-label="<?= e(t('gallery.download')) ?>">
         <?php foreach ($items as $item): ?>
-            <a href="<?= e(url($item['image_path'])) ?>" data-lightbox data-caption="<?= e($item['caption'] ?: $item['title']) ?>">
-                <img src="<?= e(url($item['image_path'])) ?>" alt="<?= e($item['title']) ?>" loading="lazy">
+            <a <?= gallery_lightbox_attrs($item) ?>>
+                <img src="<?= e(gallery_photo_url((int) $item['id'])) ?>" alt="<?= e($item['title']) ?>" loading="lazy">
             </a>
         <?php endforeach; ?>
     </div>
