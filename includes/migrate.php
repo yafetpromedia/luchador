@@ -971,6 +971,7 @@ function ensure_schema(): void
         migrate_content_visibility($pdo);
         migrate_gallery_downloads($pdo);
         migrate_event_photos($pdo);
+        migrate_culture_day($pdo);
     } catch (Throwable $e) {
         app_log('ensure_schema: ' . $e->getMessage());
     }

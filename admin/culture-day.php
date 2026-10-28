@@ -8,6 +8,15 @@ require_once dirname(__DIR__) . '/includes/queries.php';
 
 admin_boot(['culture_day.view', 'culture_day.manage', 'culture_day.publish']);
 
+// Self-heal if Culture Day was deployed before migrate_culture_day was wired into ensure_schema.
+if (!table_exists(db(), 'culture_day_events')) {
+    try {
+        migrate_culture_day(db());
+    } catch (Throwable $e) {
+        app_log('culture-day boot migrate: ' . $e->getMessage());
+    }
+}
+
 $eventId = request_int('event') ?: request_int('id');
 $tab = request_str('tab', 'overview');
 $allowedTabs = ['overview', 'groups', 'graph', 'lists', 'print', 'audit'];
@@ -71,8 +80,19 @@ if (is_post()) {
     } catch (InvalidArgumentException $e) {
         flash_set('error', $e->getMessage());
     } catch (Throwable $e) {
-        app_log($e->getMessage());
-        flash_set('error', 'Unable to save Culture Day changes.');
+        app_log('culture-day: ' . $e->getMessage());
+        $msg = 'Unable to save Culture Day changes.';
+        $detail = strtolower($e->getMessage());
+        if (str_contains($detail, "doesn't exist") || str_contains($detail, 'does not exist') || str_contains($detail, 'unknown table') || str_contains($detail, 'no such table')) {
+            try {
+                migrate_culture_day(db());
+                $msg = 'Culture Day database tables were missing and have been created. Please save again.';
+            } catch (Throwable $migrateError) {
+                app_log('culture-day migrate: ' . $migrateError->getMessage());
+                $msg = 'Culture Day database tables are missing. Refresh the page once, then try saving again.';
+            }
+        }
+        flash_set('error', $msg);
     }
     $back = $eventId > 0 ? 'admin/culture-day.php?event=' . $eventId . '&tab=' . rawurlencode($tab) : 'admin/culture-day.php';
     redirect($back);
