@@ -1204,6 +1204,59 @@ body:not(.admin-body) .cover .btn-ghost:hover {
 .masonry a:hover img { transform: scale(1.03); }
 .event-album { margin-top: 1.5rem; }
 .event-album .eyebrow { margin-bottom: 0.75rem; }
+.event-album-actions {
+    margin-top: 1rem;
+    display: flex;
+    justify-content: center;
+}
+.album-more[hidden] { display: none !important; }
+.album-more {
+    position: fixed;
+    inset: 0;
+    z-index: 75;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+}
+.album-more-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 10, 12, 0.72);
+}
+.album-more-panel {
+    position: relative;
+    z-index: 1;
+    width: min(960px, 100%);
+    max-height: min(88vh, 900px);
+    overflow: auto;
+    background: var(--color-surface, #fff);
+    color: var(--color-text, #111);
+    border-radius: var(--radius, 12px);
+    padding: 1rem 1rem 1.25rem;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+}
+.album-more-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+.album-more-close {
+    width: 40px;
+    height: 40px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-muted, #f0eeea);
+    color: inherit;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+}
+.album-more-close:hover { background: var(--color-border, #ddd); }
+.album-more-grid {
+    grid-template-columns: repeat(3, 1fr);
+}
 
 .people {
     display: grid;
@@ -1770,11 +1823,37 @@ body.auth-body .btn-ghost:hover {
     padding: 4.5rem 3.5rem 1.5rem;
 }
 .lightbox.is-open { display: grid; }
+.lightbox-stage {
+    position: relative;
+    display: grid;
+    place-items: center;
+    max-width: 100%;
+}
 .lightbox img {
     max-height: min(78vh, 100%);
     max-width: min(100%, 920px);
     width: auto;
     border-radius: 6px;
+    transition: opacity .2s ease;
+}
+.lightbox.is-loading img { opacity: 0.55; }
+.lightbox-spinner {
+    position: absolute;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 3px solid rgba(255,255,255,.25);
+    border-top-color: #fff;
+    border-radius: 50%;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .15s ease;
+}
+.lightbox.is-loading .lightbox-spinner {
+    opacity: 1;
+    animation: lightbox-spin .7s linear infinite;
+}
+@keyframes lightbox-spin {
+    to { transform: rotate(360deg); }
 }
 .lightbox-caption {
     position: absolute;
@@ -1804,17 +1883,26 @@ body.auth-body .btn-ghost:hover {
     position: absolute;
     top: 0.75rem;
     left: 0.75rem;
+    z-index: 2;
     color: #fff;
-    background: rgba(0,0,0,.4);
+    background: rgba(0,0,0,.55);
     border: 0;
     border-radius: var(--radius-sm);
     text-decoration: none;
-    font-size: 0.85rem;
-    font-weight: 600;
-    padding: 0.65rem 0.9rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    padding: 0.7rem 0.95rem;
     line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    letter-spacing: 0.01em;
 }
-.lightbox-download:hover { background: rgba(0,0,0,.55); color: #fff; }
+.lightbox-download-icon {
+    flex-shrink: 0;
+    stroke-width: 2.75;
+}
+.lightbox-download:hover { background: rgba(0,0,0,.75); color: #fff; }
 .lightbox-prev { left: 0.75rem; top: 50%; transform: translateY(-50%); }
 .lightbox-next { right: 0.75rem; top: 50%; transform: translateY(-50%); }
 

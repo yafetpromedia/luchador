@@ -218,7 +218,7 @@ public_header(site_title(), 'home', setting('hero_message'), true);
         <div class="masonry" data-gallery-grid data-download-label="<?= e(t('gallery.download')) ?>">
             <?php foreach ($photos as $item): ?>
                 <a <?= gallery_lightbox_attrs($item, true) ?>>
-                    <img src="<?= e(gallery_photo_url((int) $item['id'])) ?>" alt="<?= e($item['title']) ?>" loading="lazy">
+                    <img src="<?= e(gallery_photo_url((int) $item['id'], false, 'thumb')) ?>" alt="<?= e($item['title']) ?>" loading="lazy" decoding="async">
                 </a>
             <?php endforeach; ?>
         </div>

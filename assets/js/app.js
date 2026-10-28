@@ -90,28 +90,55 @@
         lightbox.setAttribute('aria-modal', 'true');
         lightbox.setAttribute('aria-label', 'Photograph');
         const downloadLabel = document.querySelector('[data-download-label]')?.getAttribute('data-download-label') || 'Download';
+        const downloadIcon = '<svg class="lightbox-download-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>';
         lightbox.innerHTML = '<button class="lightbox-close" type="button" aria-label="Close">' +
-            '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>' +
-            '<a class="lightbox-download" hidden download>' + downloadLabel + '</a>' +
+            '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>' +
+            '<a class="lightbox-download" hidden download>' + downloadIcon + '<span>' + downloadLabel + '</span></a>' +
             (lightboxLinks.length > 1
                 ? '<button class="lightbox-nav lightbox-prev" type="button" aria-label="Previous">' +
-                  '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>' +
+                  '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg></button>' +
                   '<button class="lightbox-nav lightbox-next" type="button" aria-label="Next">' +
-                  '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button>'
+                  '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg></button>'
                 : '') +
-            '<img alt=""><p class="lightbox-caption"></p>';
+            '<div class="lightbox-stage"><div class="lightbox-spinner" aria-hidden="true"></div><img alt=""></div><p class="lightbox-caption"></p>';
         document.body.appendChild(lightbox);
         const lightboxImg = lightbox.querySelector('img');
         const caption = lightbox.querySelector('.lightbox-caption');
         const downloadBtn = lightbox.querySelector('.lightbox-download');
         let index = 0;
+        let loadToken = 0;
+
+        const setLoading = (on) => {
+            lightbox.classList.toggle('is-loading', !!on);
+        };
 
         const show = (i) => {
             index = (i + lightboxLinks.length) % lightboxLinks.length;
             const link = lightboxLinks[index];
-            lightboxImg.src = link.getAttribute('href');
-            lightboxImg.alt = link.querySelector('img')?.getAttribute('alt') || '';
+            const nextSrc = link.getAttribute('href') || '';
+            const thumbEl = link.querySelector('img');
+            const thumbSrc = thumbEl?.currentSrc || thumbEl?.getAttribute('src') || '';
+            const token = ++loadToken;
+            setLoading(true);
+            lightboxImg.alt = thumbEl?.getAttribute('alt') || '';
             caption.textContent = link.getAttribute('data-caption') || '';
+            if (thumbSrc) {
+                lightboxImg.src = thumbSrc;
+            }
+            const loader = new Image();
+            loader.onload = () => {
+                if (token !== loadToken) return;
+                lightboxImg.src = nextSrc;
+                setLoading(false);
+            };
+            loader.onerror = () => {
+                if (token === loadToken) setLoading(false);
+            };
+            loader.src = nextSrc;
+            if (loader.complete && loader.naturalWidth > 0 && token === loadToken) {
+                lightboxImg.src = nextSrc;
+                setLoading(false);
+            }
             const downloadHref = link.getAttribute('data-download');
             if (downloadBtn) {
                 if (downloadHref) {
@@ -121,6 +148,17 @@
                     downloadBtn.removeAttribute('href');
                     downloadBtn.hidden = true;
                 }
+            }
+            const preload = (offset) => {
+                const other = lightboxLinks[(index + offset + lightboxLinks.length) % lightboxLinks.length];
+                const href = other?.getAttribute('href');
+                if (!href) return;
+                const img = new Image();
+                img.src = href;
+            };
+            if (lightboxLinks.length > 1) {
+                preload(1);
+                preload(-1);
             }
         };
 
@@ -168,6 +206,35 @@
             });
         });
     }
+
+    document.querySelectorAll('[data-album-more]').forEach((modal) => {
+        const openBtn = modal.parentElement?.querySelector('[data-album-more-open]');
+        const closeAlbumMore = () => {
+            if (modal.hasAttribute('hidden')) return;
+            modal.setAttribute('hidden', '');
+            document.body.classList.remove('album-more-open');
+            unlockScroll();
+            openBtn?.focus();
+        };
+        const openAlbumMore = () => {
+            closeNav();
+            closeSidebar();
+            lastFocus = document.activeElement;
+            modal.removeAttribute('hidden');
+            document.body.classList.add('album-more-open');
+            lockScroll();
+            modal.querySelector('[data-album-more-close]')?.focus();
+        };
+        openBtn?.addEventListener('click', openAlbumMore);
+        modal.querySelectorAll('[data-album-more-close]').forEach((el) => {
+            el.addEventListener('click', closeAlbumMore);
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key !== 'Escape') return;
+            if (document.body.classList.contains('lightbox-open')) return;
+            if (!modal.hasAttribute('hidden')) closeAlbumMore();
+        });
+    });
 
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {

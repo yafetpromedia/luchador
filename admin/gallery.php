@@ -113,15 +113,51 @@ if (is_post()) {
             ]);
             flash_set('success', 'Photo updated.');
             redirect('admin/gallery.php?edit=' . $id);
+        } elseif (posted('action') === 'move_to_event') {
+            require_permission('gallery.edit');
+            require_permission('events.edit');
+            $eventId = (int) posted('event_id');
+            $event = find_event_row($eventId);
+            if (!$event) {
+                throw new InvalidArgumentException('Choose a calendar event.');
+            }
+            $moved = move_gallery_photos_to_event([request_int('id')], $eventId);
+            if ($moved < 1) {
+                throw new InvalidArgumentException('Photo not found.');
+            }
+            log_audit('gallery.move_event', 'event', $eventId, (string) ($event['title'] ?? ''));
+            flash_set('success', 'Photo moved into the ' . (string) $event['title'] . ' event album.');
+            redirect('admin/events.php?edit=' . $eventId);
         } else {
             require_permission('gallery.upload');
-            $title = posted('title');
-            if ($title === '') {
-                throw new InvalidArgumentException('Title is required.');
-            }
             $files = uploaded_file_list('images');
             if ($files === []) {
                 throw new InvalidArgumentException('Select at least one image.');
+            }
+            $eventId = (int) posted('event_id');
+            if ($eventId > 0) {
+                require_permission('events.edit');
+                $event = find_event_row($eventId);
+                if (!$event) {
+                    throw new InvalidArgumentException('Choose a calendar event.');
+                }
+                $album = add_event_photos($eventId, $files);
+                if ($album['added'] < 1) {
+                    throw new InvalidArgumentException($album['errors'][0] ?? 'No images could be uploaded.');
+                }
+                log_audit('event.photos', 'event', $eventId, (string) ($event['title'] ?? ''));
+                $message = $album['added'] === 1
+                    ? '1 photo added to ' . (string) $event['title'] . '.'
+                    : $album['added'] . ' photos added to ' . (string) $event['title'] . '.';
+                if ($album['errors'] !== []) {
+                    $message .= ' Some files could not be uploaded. ' . $album['errors'][0];
+                }
+                flash_set('success', $message);
+                redirect('admin/events.php?edit=' . $eventId);
+            }
+            $title = posted('title');
+            if ($title === '') {
+                throw new InvalidArgumentException('Title is required for Gallery photos.');
             }
             $category = posted('category');
             if (!array_key_exists($category, gallery_categories()) || $category === 'all') {
@@ -201,8 +237,9 @@ if (is_post()) {
 }
 
 $rows = db()->query('SELECT * FROM gallery ORDER BY id DESC')->fetchAll();
+$calendarEvents = can('events.edit') ? event_options_for_album() : [];
 admin_header($edit ? 'Edit photo' : 'Gallery', 'gallery');
-admin_page_head('Photos stay class-only until you set Public website.');
+admin_page_head('Photos stay class-only until you set Public website. For Welcome Day and other class events, add photos to the calendar event album instead of separate Gallery cards.');
 ?>
 
 <?php if ($edit): ?>
@@ -235,7 +272,7 @@ admin_page_head('Photos stay class-only until you set Public website.');
         <div class="admin-mosaic" style="margin-top:1rem;max-width:280px">
             <article class="admin-mosaic-card">
                 <div class="admin-mosaic-img">
-                    <img src="<?= e(gallery_photo_url((int) $edit['id'])) ?>" alt="<?= e((string) $edit['title']) ?>">
+                    <img src="<?= e(gallery_photo_url((int) $edit['id'], false, 'view')) ?>" alt="<?= e((string) $edit['title']) ?>">
                 </div>
             </article>
         </div>
@@ -257,11 +294,25 @@ $uploadTakenOn = (string) ($edit['taken_on'] ?? '');
 ?>
 <div class="panel" id="upload-photos">
     <h2><?= $edit ? 'Upload more photos' : 'Upload photos' ?></h2>
-    <p class="muted">Hold Ctrl (or Cmd) and click to select many files at once, then upload.</p>
+    <p class="muted">Hold Ctrl (or Cmd) and click to select many files at once. To keep Welcome Day (or any class day) together, choose that calendar event below — photos go into the event album instead of separate Gallery cards.</p>
     <form method="post" enctype="multipart/form-data" data-loading>
         <?= csrf_field() ?>
         <div class="form-grid">
-            <div class="form-group"><label>Title</label><input name="title" required placeholder="e.g. Welcome Day" value="<?= e($uploadTitle) ?>"></div>
+            <?php if ($calendarEvents): ?>
+            <div class="form-group full">
+                <label>Add to calendar event</label>
+                <select name="event_id">
+                    <option value="0">Stay in Gallery (standalone photos)</option>
+                    <?php foreach ($calendarEvents as $ev): ?>
+                        <option value="<?= (int) $ev['id'] ?>">
+                            <?= e((string) $ev['title']) ?><?= !empty($ev['event_date']) ? ' · ' . e(format_date($ev['event_date'])) : '' ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <p class="muted">Pick the event (for example Welcome Day) to merge into that album. Leave as Gallery only for photos that are not tied to one event.</p>
+            </div>
+            <?php endif; ?>
+            <div class="form-group"><label>Title</label><input name="title" placeholder="e.g. Class spirit week" value="<?= e($uploadTitle) ?>"></div>
             <div class="form-group">
                 <label>Category</label>
                 <select name="category">
@@ -275,7 +326,7 @@ $uploadTakenOn = (string) ($edit['taken_on'] ?? '');
             <div class="form-group full">
                 <label>Images</label>
                 <input type="file" name="images[]" accept="image/jpeg,image/png,image/webp,image/gif" multiple required>
-                <p class="muted">Select many at once — 24 or more is fine. Same title, caption, date, and visibility apply to every file. JPG, PNG, WEBP, or GIF up to <?= e(upload_max_label()) ?> each.</p>
+                <p class="muted">Select many at once — 24 or more is fine. Title/category/visibility apply only when staying in Gallery. JPG, PNG, WEBP, or GIF up to <?= e(upload_max_label()) ?> each.</p>
             </div>
             <?= visibility_select($edit) ?>
             <?= download_for_select($edit) ?>
@@ -292,7 +343,7 @@ $uploadTakenOn = (string) ($edit['taken_on'] ?? '');
     <?php foreach ($rows as $row): ?>
         <article class="admin-mosaic-card">
             <div class="admin-mosaic-img">
-                <img src="<?= e(gallery_photo_url((int) $row['id'])) ?>" alt="<?= e($row['title']) ?>">
+                <img src="<?= e(gallery_photo_url((int) $row['id'], false, 'thumb')) ?>" alt="<?= e($row['title']) ?>" loading="lazy" decoding="async">
             </div>
             <div class="admin-mosaic-body">
                 <div>
@@ -315,6 +366,23 @@ $uploadTakenOn = (string) ($edit['taken_on'] ?? '');
             </form>
             <?php else: ?>
             <p class="muted mosaic-policy">Download: <?= e(gallery_download_label($row)) ?></p>
+            <?php endif; ?>
+            <?php if ($calendarEvents): ?>
+            <form method="post" class="mosaic-policy">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="move_to_event">
+                <input type="hidden" name="id" value="<?= (int) $row['id'] ?>">
+                <label>Move to event album</label>
+                <div class="row-actions" style="margin:0;align-items:center">
+                    <select name="event_id" required>
+                        <option value="">Choose event…</option>
+                        <?php foreach ($calendarEvents as $ev): ?>
+                            <option value="<?= (int) $ev['id'] ?>"><?= e((string) $ev['title']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <button class="btn btn-sm" type="submit">Move</button>
+                </div>
+            </form>
             <?php endif; ?>
             <div class="row-actions">
                 <?php if (can('gallery.edit')): ?>

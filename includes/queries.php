@@ -65,6 +65,7 @@ function event_photos(int $eventId): array
     if ($eventId < 1 || !table_exists(db(), 'event_photos')) {
         return [];
     }
+    // id ASC = first uploaded first; display_order keeps manual/batch order when set.
     $stmt = db()->prepare('SELECT * FROM event_photos WHERE event_id = ? ORDER BY display_order ASC, id ASC');
     $stmt->execute([$eventId]);
     return $stmt->fetchAll();
@@ -106,6 +107,60 @@ function add_event_photos(int $eventId, array $files): array
     return ['added' => $added, 'errors' => array_values(array_unique($errors))];
 }
 
+function event_options_for_album(): array
+{
+    if (!table_exists(db(), 'events')) {
+        return [];
+    }
+    return db()->query(
+        'SELECT id, title, event_date FROM events ORDER BY (event_date IS NULL), event_date DESC, id DESC'
+    )->fetchAll();
+}
+
+function find_event_row(int $eventId): ?array
+{
+    if ($eventId < 1 || !table_exists(db(), 'events')) {
+        return null;
+    }
+    $stmt = db()->prepare('SELECT * FROM events WHERE id = ? LIMIT 1');
+    $stmt->execute([$eventId]);
+    $row = $stmt->fetch();
+    return $row ?: null;
+}
+
+/** Move gallery rows into an event album. Keeps image files; removes gallery entries. */
+function move_gallery_photos_to_event(array $galleryIds, int $eventId): int
+{
+    if ($eventId < 1 || !table_exists(db(), 'event_photos') || !find_event_row($eventId)) {
+        throw new InvalidArgumentException('Choose a calendar event.');
+    }
+    $ids = array_values(array_unique(array_filter(array_map('intval', $galleryIds), static fn (int $id): bool => $id > 0)));
+    if ($ids === []) {
+        throw new InvalidArgumentException('No photos selected.');
+    }
+    $orderStmt = db()->prepare('SELECT COALESCE(MAX(display_order), 0) FROM event_photos WHERE event_id = ?');
+    $orderStmt->execute([$eventId]);
+    $order = (int) $orderStmt->fetchColumn();
+    $insert = db()->prepare('INSERT INTO event_photos (event_id, image_path, display_order) VALUES (?,?,?)');
+    $delete = db()->prepare('DELETE FROM gallery WHERE id = ?');
+    $moved = 0;
+    foreach ($ids as $galleryId) {
+        $row = find_gallery_photo($galleryId);
+        if (!$row) {
+            continue;
+        }
+        $path = trim((string) ($row['image_path'] ?? ''));
+        if ($path === '') {
+            continue;
+        }
+        $order++;
+        $insert->execute([$eventId, $path, $order]);
+        $delete->execute([$galleryId]);
+        $moved++;
+    }
+    return $moved;
+}
+
 function delete_event_photo(int $photoId): ?int
 {
     if ($photoId < 1 || !table_exists(db(), 'event_photos')) {
@@ -132,24 +187,61 @@ function delete_event_photos_for(int $eventId): void
     }
 }
 
-function event_album_html(array $photos, string $caption = ''): string
+function event_album_photo_link(array $photo, string $caption = ''): string
+{
+    $src = url((string) ($photo['image_path'] ?? ''));
+    if ($src === '') {
+        return '';
+    }
+    return '<a href="' . e($src) . '" data-lightbox data-caption="' . e($caption) . '" data-download="' . e($src) . '">'
+        . '<img src="' . e($src) . '" alt="" loading="lazy" decoding="async">'
+        . '</a>';
+}
+
+/** Show first 9 photos; overflow opens in a See more popup (same upload order). */
+function event_album_html(array $photos, string $caption = '', int $previewLimit = 9): string
 {
     if ($photos === []) {
         return '';
     }
-    $html = '<div class="event-album">';
-    $html .= '<p class="eyebrow">' . e(t('event.photos')) . '</p>';
-    $html .= '<div class="masonry" data-download-label="' . e(t('gallery.download')) . '">';
+    $links = [];
     foreach ($photos as $photo) {
-        $src = url((string) ($photo['image_path'] ?? ''));
-        if ($src === '') {
-            continue;
+        $link = event_album_photo_link($photo, $caption);
+        if ($link !== '') {
+            $links[] = $link;
         }
-        $html .= '<a href="' . e($src) . '" data-lightbox data-caption="' . e($caption) . '" data-download="' . e($src) . '">';
-        $html .= '<img src="' . e($src) . '" alt="" loading="lazy">';
-        $html .= '</a>';
     }
-    $html .= '</div></div>';
+    if ($links === []) {
+        return '';
+    }
+
+    $previewLimit = max(1, $previewLimit);
+    $preview = array_slice($links, 0, $previewLimit);
+    $extra = array_slice($links, $previewLimit);
+    $extraCount = count($extra);
+
+    $html = '<div class="event-album" data-download-label="' . e(t('gallery.download')) . '">';
+    $html .= '<p class="eyebrow">' . e(t('event.photos')) . '</p>';
+    $html .= '<div class="masonry event-album-preview">' . implode('', $preview) . '</div>';
+
+    if ($extraCount > 0) {
+        $moreLabel = str_replace('{n}', (string) $extraCount, t('event.see_more'));
+        $html .= '<div class="event-album-actions">';
+        $html .= '<button type="button" class="btn btn-ghost" data-album-more-open>' . e($moreLabel) . '</button>';
+        $html .= '</div>';
+        $html .= '<div class="album-more" hidden data-album-more role="dialog" aria-modal="true" aria-label="' . e(t('event.more_photos')) . '">';
+        $html .= '<div class="album-more-backdrop" data-album-more-close tabindex="-1"></div>';
+        $html .= '<div class="album-more-panel">';
+        $html .= '<div class="album-more-head">';
+        $html .= '<strong>' . e(t('event.more_photos')) . '</strong>';
+        $html .= '<button type="button" class="album-more-close" data-album-more-close aria-label="' . e(t('event.close_photos')) . '">';
+        $html .= '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+        $html .= '</button></div>';
+        $html .= '<div class="masonry album-more-grid">' . implode('', $extra) . '</div>';
+        $html .= '</div></div>';
+    }
+
+    $html .= '</div>';
     return $html;
 }
 
