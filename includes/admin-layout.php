@@ -164,7 +164,7 @@ function admin_footer(): void
         </div>
     </div>
     <script src="<?= e(url('assets/js/app.js')) ?>?v=18"></script>
-    <script src="<?= e(url('assets/js/admin.js')) ?>?v=13"></script>
+    <script src="<?= e(url('assets/js/admin.js')) ?>?v=14"></script>
     <script src="<?= e(url('assets/js/culture-graph.js')) ?>?v=6"></script>
 </body>
 </html>

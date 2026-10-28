@@ -154,7 +154,7 @@ admin_page_head('Class dates stay private until you set Public website.');
 <?php if ($showEventForm): ?>
 <div class="panel">
     <h2><?= $edit ? 'Update event' : 'Add event' ?></h2>
-    <form method="post" enctype="multipart/form-data" data-loading>
+    <form method="post" enctype="multipart/form-data" data-loading data-compress-images data-loading-label="Saving…" data-compress-label="Preparing photos…">
         <?= csrf_field() ?>
         <input type="hidden" name="id" value="<?= e((string) ($edit['id'] ?? '')) ?>">
         <div class="form-grid">
@@ -183,7 +183,7 @@ admin_page_head('Class dates stay private until you set Public website.');
             <div class="form-group full">
                 <label>Event photos</label>
                 <input type="file" name="photos[]" accept="image/jpeg,image/png,image/webp,image/gif" multiple>
-                <p class="muted">Select many at once — 24 or more is fine. JPG, PNG, WEBP, or GIF up to <?= e(upload_max_label()) ?> each. Save, then edit the event to add another batch if needed.</p>
+                <p class="muted">Select many at once. Large photos are resized in your browser first. JPG, PNG, WEBP, or GIF up to <?= e(upload_max_label()) ?> each. Save, then edit the event to add another batch if needed.</p>
             </div>
             <?= visibility_select($edit) ?>
         </div>

@@ -147,6 +147,12 @@ if (is_post()) {
             require_permission('gallery.upload');
             $files = uploaded_file_list('images');
             if ($files === []) {
+                $contentLength = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
+                if ($contentLength > 8 * 1024 * 1024 && empty($_POST) && empty($_FILES)) {
+                    throw new InvalidArgumentException(
+                        'That upload was too large for the server (or Cloudflare). Try fewer photos at once, or wait for browser resize — large phone photos are compressed automatically before upload.'
+                    );
+                }
                 throw new InvalidArgumentException('Select at least one image.');
             }
             $eventId = (int) posted('event_id');
@@ -260,7 +266,7 @@ admin_page_head('Photos stay class-only until you set Public website. For Welcom
 <?php if ($edit): ?>
 <div class="panel">
     <h2>Edit photo</h2>
-    <form method="post" enctype="multipart/form-data" data-loading>
+    <form method="post" enctype="multipart/form-data" data-loading data-compress-images data-compress-label="Preparing photo…">
         <?= csrf_field() ?>
         <input type="hidden" name="action" value="save">
         <input type="hidden" name="id" value="<?= (int) $edit['id'] ?>">
@@ -318,7 +324,7 @@ $uploadTakenOn = (string) ($edit['taken_on'] ?? '');
 <div class="panel" id="upload-photos">
     <h2><?= $edit ? 'Upload more photos' : 'Upload photos' ?></h2>
     <p class="muted">Hold Ctrl (or Cmd) and click to select many files at once. To keep Welcome Day (or any class day) together, choose that calendar event below — photos go into the event album instead of separate Gallery cards.</p>
-    <form method="post" enctype="multipart/form-data" data-loading>
+    <form method="post" enctype="multipart/form-data" data-loading data-compress-images data-loading-label="Uploading…" data-compress-label="Preparing photos…">
         <?= csrf_field() ?>
         <div class="form-grid">
             <?php if ($calendarEvents): ?>
@@ -349,7 +355,7 @@ $uploadTakenOn = (string) ($edit['taken_on'] ?? '');
             <div class="form-group full">
                 <label>Images</label>
                 <input type="file" name="images[]" accept="image/jpeg,image/png,image/webp,image/gif" multiple required>
-                <p class="muted">Select many at once — 24 or more is fine. Title/category/visibility apply only when staying in Gallery. JPG, PNG, WEBP, or GIF up to <?= e(upload_max_label()) ?> each.</p>
+                <p class="muted">Select many at once. Large phone photos are resized in your browser first so Cloudflare does not block the upload. Title/category/visibility apply only when staying in Gallery. JPG, PNG, WEBP, or GIF up to <?= e(upload_max_label()) ?> each.</p>
             </div>
             <?= visibility_select($edit) ?>
             <?= download_for_select($edit) ?>

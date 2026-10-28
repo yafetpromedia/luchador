@@ -77,6 +77,109 @@
         }
     });
 
+    const loadImageBitmap = (file) => new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            resolve(img);
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error('Could not read image'));
+        };
+        img.src = url;
+    });
+
+    const compressImageFile = async (file, { maxEdge = 2000, quality = 0.82, maxBytes = 3.5 * 1024 * 1024 } = {}) => {
+        if (!(file instanceof File) || !file.type.startsWith('image/')) return file;
+        if (file.type === 'image/gif') return file;
+        if (file.size <= maxBytes && file.size < 1.2 * 1024 * 1024) return file;
+        try {
+            const img = await loadImageBitmap(file);
+            const w = img.naturalWidth || img.width;
+            const h = img.naturalHeight || img.height;
+            if (!w || !h) return file;
+            const scale = Math.min(1, maxEdge / Math.max(w, h));
+            const tw = Math.max(1, Math.round(w * scale));
+            const th = Math.max(1, Math.round(h * scale));
+            if (scale >= 0.98 && file.size <= maxBytes) return file;
+            const canvas = document.createElement('canvas');
+            canvas.width = tw;
+            canvas.height = th;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return file;
+            ctx.drawImage(img, 0, 0, tw, th);
+            const preferWebp = file.type === 'image/webp';
+            const mime = preferWebp ? 'image/webp' : 'image/jpeg';
+            const blob = await new Promise((resolve) => canvas.toBlob(resolve, mime, quality));
+            if (!blob || blob.size <= 0 || blob.size >= file.size * 0.98) return file;
+            const base = (file.name || 'photo').replace(/\.[^.]+$/, '');
+            const ext = mime === 'image/webp' ? 'webp' : 'jpg';
+            return new File([blob], base + '.' + ext, { type: mime, lastModified: Date.now() });
+        } catch (err) {
+            return file;
+        }
+    };
+
+    const replaceInputFiles = (input, files) => {
+        const transfer = new DataTransfer();
+        files.forEach((file) => transfer.items.add(file));
+        input.files = transfer.files;
+    };
+
+    document.querySelectorAll('form[data-compress-images]').forEach((form) => {
+        form.addEventListener('submit', async (event) => {
+            if (form.dataset.imagesReady === '1') {
+                form.dataset.imagesReady = '0';
+                return;
+            }
+            const inputs = Array.from(form.querySelectorAll('input[type="file"]')).filter((input) => (
+                input.files && input.files.length > 0
+                && (!input.accept || input.accept.includes('image') || input.accept === '')
+            ));
+            if (!inputs.length) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            const btn = form.querySelector('button[type="submit"]');
+            const previousLabel = btn ? (btn.dataset.label || btn.textContent || '') : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.classList.add('is-loading');
+                btn.dataset.label = previousLabel;
+                btn.textContent = btn.getAttribute('data-compress-label') || 'Preparing photos…';
+            }
+            form.setAttribute('aria-busy', 'true');
+
+            try {
+                for (const input of inputs) {
+                    const next = [];
+                    for (const file of Array.from(input.files || [])) {
+                        next.push(await compressImageFile(file));
+                    }
+                    replaceInputFiles(input, next);
+                }
+                form.dataset.imagesReady = '1';
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit(btn || undefined);
+                } else {
+                    form.submit();
+                }
+            } catch (err) {
+                form.dataset.imagesReady = '0';
+                if (btn) {
+                    btn.disabled = false;
+                    btn.classList.remove('is-loading');
+                    btn.textContent = previousLabel || 'Upload photos';
+                }
+                form.removeAttribute('aria-busy');
+                window.alert('Could not prepare the photos for upload. Try fewer or smaller images.');
+            }
+        }, true);
+    });
+
     document.querySelectorAll('form[data-loading]').forEach((form) => {
         form.addEventListener('submit', () => {
             const btn = form.querySelector('button[type="submit"]');
