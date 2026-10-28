@@ -98,48 +98,35 @@ $filterMatch = static function (array $culture) use ($searchNeedle): bool {
 
 <?php if ($tab === 'graph'): ?>
 <section class="stu-block culture-graph-panel">
-    <div class="toolbar" style="margin-bottom:0.75rem">
-        <button class="btn btn-ghost" type="button" data-culture-expand-all>Expand all</button>
-        <button class="btn btn-ghost" type="button" data-culture-collapse-all>Collapse all</button>
-    </div>
     <?php if (($graph['cultures'] ?? []) === []): ?>
         <div class="empty-state">
             <h2>No groups yet</h2>
             <p>Groups will appear here once they are entered and published.</p>
         </div>
     <?php else: ?>
-        <div class="culture-graph" data-culture-graph>
-            <div class="culture-node culture-node-root">
-                <strong><?= e($event['title']) ?></strong>
-                <span class="muted">Culture Day → Cultures → Groups → Students</span>
+        <div
+            class="culture-network"
+            data-culture-network
+            data-graph="<?= e(json_encode($graph, JSON_UNESCAPED_UNICODE)) ?>"
+        >
+            <div class="culture-network-toolbar">
+                <div class="culture-roster-search" style="flex:1;margin:0">
+                    <input type="search" data-culture-network-search placeholder="Filter culture, group, name, or ID" autocomplete="off" value="<?= e($q) ?>">
+                </div>
+                <button class="btn btn-ghost is-active" type="button" data-culture-toggle-students>Hide students</button>
+                <button class="btn btn-ghost" type="button" data-culture-fit>Fit view</button>
             </div>
-            <?php foreach ($graph['cultures'] as $culture): ?>
-                <?php if (!$filterMatch($culture)) continue; ?>
-                <details class="culture-node culture-node-culture" open>
-                    <summary>
-                        <span><?= e($culture['name']) ?></span>
-                        <span class="muted"><?= (int) $culture['group_count'] ?> groups · <?= (int) $culture['student_count'] ?> students</span>
-                    </summary>
-                    <div class="culture-node-children">
-                        <?php foreach ($culture['groups'] as $group): ?>
-                            <details class="culture-node culture-node-group" open>
-                                <summary>
-                                    <span><?= e($group['name']) ?></span>
-                                    <span class="muted"><?= (int) $group['member_count'] ?> members</span>
-                                </summary>
-                                <ul class="culture-node-students">
-                                    <?php foreach ($group['members'] as $member): ?>
-                                        <li>
-                                            <?= e($member['name']) ?>
-                                            <span class="muted"><?= e($member['code'] ?: 'No ID') ?></span>
-                                        </li>
-                                    <?php endforeach; ?>
-                                </ul>
-                            </details>
-                        <?php endforeach; ?>
-                    </div>
-                </details>
-            <?php endforeach; ?>
+            <div class="culture-network-shell">
+                <div class="culture-network-canvas" data-culture-canvas></div>
+                <aside class="culture-network-legend" aria-label="Graph legend">
+                    <p><span class="culture-dot culture-dot-event"></span> Culture Day</p>
+                    <p><span class="culture-dot culture-dot-culture"></span> Culture</p>
+                    <p><span class="culture-dot culture-dot-group"></span> Group</p>
+                    <p><span class="culture-dot culture-dot-male"></span> Male</p>
+                    <p><span class="culture-dot culture-dot-female"></span> Female</p>
+                </aside>
+            </div>
+            <p class="muted culture-network-status" data-culture-network-status>Preparing graph…</p>
         </div>
     <?php endif; ?>
 </section>

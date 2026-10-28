@@ -59,7 +59,7 @@ function admin_header(string $title, string $active = 'index', string $bodyClass
     <title><?= e($title) ?> · <?= e(class_name()) ?> <?= e(t('admin.brand')) ?></title>
     <link rel="icon" href="<?= e(url('assets/images/favicon.svg')) ?>" type="image/svg+xml">
     <?php site_font_links(); ?>
-    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=67">
+    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=68">
     <link rel="stylesheet" href="<?= e(url('assets/css/admin.css')) ?>?v=44">
 </head>
 <body class="<?= e($bodyClass) ?>">
@@ -165,6 +165,7 @@ function admin_footer(): void
     </div>
     <script src="<?= e(url('assets/js/app.js')) ?>?v=17"></script>
     <script src="<?= e(url('assets/js/admin.js')) ?>?v=12"></script>
+    <script src="<?= e(url('assets/js/culture-graph.js')) ?>?v=1"></script>
 </body>
 </html>
     <?php

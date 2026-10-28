@@ -3949,6 +3949,65 @@ a.interact-link:hover { border-color: #111113; }
     .stu-event-hero.has-photo { min-height: 16.5rem; max-height: 18rem; }
 }
 
+.culture-network {
+    display: grid;
+    gap: 0.85rem;
+}
+.culture-network-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    align-items: center;
+}
+.culture-network-shell {
+    position: relative;
+    border: 1px solid #e7e3db;
+    border-radius: 18px;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at top left, rgba(245, 158, 11, 0.08), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(37, 99, 235, 0.06), transparent 30%),
+        #fff;
+}
+.culture-network-canvas {
+    width: 100%;
+    height: min(68vh, 640px);
+    min-height: 420px;
+}
+.culture-network-legend {
+    position: absolute;
+    left: 0.85rem;
+    bottom: 0.85rem;
+    z-index: 2;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid #ebe6de;
+    border-radius: 14px;
+    padding: 0.7rem 0.85rem;
+    box-shadow: 0 10px 30px rgba(17, 17, 17, 0.06);
+    display: grid;
+    gap: 0.35rem;
+    font-size: 0.78rem;
+}
+.culture-network-legend p {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: #555;
+}
+.culture-dot {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 50%;
+    display: inline-block;
+    border: 2px solid transparent;
+}
+.culture-dot-event { background: #f59e0b; border-color: #b45309; }
+.culture-dot-culture { background: #7c3aed; }
+.culture-dot-group { background: #eff6ff; border-color: #2563eb; }
+.culture-dot-male { background: #dbeafe; border-color: #1d4ed8; }
+.culture-dot-female { background: #fce7f3; border-color: #be185d; }
+.culture-network-status { margin: 0; }
 .culture-graph {
     display: grid;
     gap: 0.65rem;
