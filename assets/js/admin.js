@@ -536,6 +536,200 @@
         });
     });
 
+    document.querySelectorAll('[data-culture-group-picker]').forEach((root) => {
+        let roster = [];
+        let selected = { male: [], female: [], pending: [] };
+        try {
+            roster = JSON.parse(root.getAttribute('data-roster') || '[]');
+        } catch (e) {
+            roster = [];
+        }
+        try {
+            selected = Object.assign(selected, JSON.parse(root.getAttribute('data-selected') || '{}'));
+        } catch (e) {
+            // keep defaults
+        }
+        selected.male = Array.isArray(selected.male) ? selected.male : [];
+        selected.female = Array.isArray(selected.female) ? selected.female : [];
+        selected.pending = Array.isArray(selected.pending) ? selected.pending : [];
+
+        let lane = 'male';
+        const searchInput = root.querySelector('[data-culture-live-search]');
+        const hiddenBox = root.querySelector('[data-culture-hidden-inputs]');
+        const pendingWrap = root.querySelector('[data-culture-pending-wrap]');
+        const pendingBox = root.querySelector('[data-culture-pending]');
+
+        const takenIds = () => {
+            const ids = new Set();
+            selected.male.forEach((s) => ids.add(Number(s.id)));
+            selected.female.forEach((s) => ids.add(Number(s.id)));
+            selected.pending.forEach((s) => ids.add(Number(s.id)));
+            return ids;
+        };
+
+        const escapeHtml = (value) => String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+
+        const cardHtml = (student, { checked = false, removable = false } = {}) => {
+            const meta = [student.code || 'No ID', student.section].filter(Boolean).join(' · ');
+            return (
+                '<label class="culture-pick-card">' +
+                '<input type="checkbox" ' + (checked ? 'checked' : '') + ' data-culture-id="' + Number(student.id) + '">' +
+                '<span class="culture-pick-main"><strong>' + escapeHtml(student.name) + '</strong>' +
+                '<span class="muted">' + escapeHtml(meta) + '</span></span>' +
+                (removable ? '<span class="muted">Uncheck to remove</span>' : '') +
+                '</label>'
+            );
+        };
+
+        const syncHidden = () => {
+            if (!hiddenBox) return;
+            const parts = [];
+            selected.male.forEach((s) => {
+                parts.push('<input type="hidden" name="male_ids[]" value="' + Number(s.id) + '">');
+            });
+            selected.female.forEach((s) => {
+                parts.push('<input type="hidden" name="female_ids[]" value="' + Number(s.id) + '">');
+            });
+            hiddenBox.innerHTML = parts.join('');
+        };
+
+        const renderLane = (key) => {
+            const panel = root.querySelector('[data-culture-lane-panel="' + key + '"]');
+            if (!panel) return;
+            const list = selected[key] || [];
+            const selectedBox = panel.querySelector('[data-culture-selected]');
+            const empty = panel.querySelector('[data-culture-empty]');
+            const count = panel.querySelector('[data-culture-count]');
+            if (count) count.textContent = list.length + ' selected';
+            if (selectedBox) {
+                selectedBox.innerHTML = list.map((s) => cardHtml(s, { checked: true, removable: true })).join('');
+            }
+            if (empty) empty.hidden = list.length > 0;
+        };
+
+        const renderPending = () => {
+            if (!pendingWrap || !pendingBox) return;
+            pendingWrap.hidden = selected.pending.length < 1;
+            pendingBox.innerHTML = selected.pending.map((s) => (
+                '<article class="culture-unknown-card" data-pending-id="' + Number(s.id) + '">' +
+                '<div><strong>' + escapeHtml(s.name) + '</strong>' +
+                '<p class="muted">' + escapeHtml(s.code || 'No ID') + '</p></div>' +
+                '<div class="row-actions">' +
+                '<button type="button" class="btn btn-sm btn-ghost" data-pending-to="male">Male</button>' +
+                '<button type="button" class="btn btn-sm btn-ghost" data-pending-to="female">Female</button>' +
+                '</div></article>'
+            )).join('');
+        };
+
+        const renderResults = () => {
+            const query = (searchInput?.value || '').trim().toLowerCase();
+            const taken = takenIds();
+            root.querySelectorAll('[data-culture-lane-panel]').forEach((panel) => {
+                const key = panel.getAttribute('data-culture-lane-panel');
+                const results = panel.querySelector('[data-culture-results]');
+                const label = panel.querySelector('[data-culture-results-label]');
+                const empty = panel.querySelector('[data-culture-results-empty]');
+                const active = key === lane;
+                if (!active || query === '') {
+                    if (results) results.innerHTML = '';
+                    if (label) label.hidden = true;
+                    if (empty) empty.hidden = true;
+                    return;
+                }
+                const matches = roster.filter((s) => {
+                    if (taken.has(Number(s.id))) return false;
+                    const hay = ((s.name || '') + ' ' + (s.code || '') + ' ' + (s.section || '')).toLowerCase();
+                    return hay.includes(query);
+                }).slice(0, 40);
+                if (label) label.hidden = false;
+                if (empty) empty.hidden = matches.length > 0;
+                if (results) {
+                    results.innerHTML = matches.map((s) => cardHtml(s, { checked: false })).join('');
+                }
+            });
+        };
+
+        const renderAll = () => {
+            renderLane('male');
+            renderLane('female');
+            renderPending();
+            renderResults();
+            syncHidden();
+        };
+
+        const removeId = (id) => {
+            const num = Number(id);
+            selected.male = selected.male.filter((s) => Number(s.id) !== num);
+            selected.female = selected.female.filter((s) => Number(s.id) !== num);
+            selected.pending = selected.pending.filter((s) => Number(s.id) !== num);
+        };
+
+        const addStudent = (student, toLane) => {
+            if (!student || (toLane !== 'male' && toLane !== 'female')) return;
+            removeId(student.id);
+            selected[toLane].push({
+                id: Number(student.id),
+                name: student.name || '',
+                code: student.code || '',
+            });
+            renderAll();
+        };
+
+        root.querySelectorAll('[data-culture-lane]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                lane = btn.getAttribute('data-culture-lane') === 'female' ? 'female' : 'male';
+                root.querySelectorAll('[data-culture-lane]').forEach((el) => {
+                    el.classList.toggle('is-active', el === btn);
+                });
+                renderResults();
+            });
+        });
+
+        const runSearch = () => renderResults();
+        searchInput?.addEventListener('input', runSearch);
+        searchInput?.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                runSearch();
+            }
+        });
+        root.querySelector('[data-culture-live-search-btn]')?.addEventListener('click', runSearch);
+
+        root.addEventListener('change', (event) => {
+            const input = event.target.closest('input[data-culture-id]');
+            if (!input) return;
+            const id = Number(input.getAttribute('data-culture-id'));
+            const panel = input.closest('[data-culture-lane-panel]');
+            const panelLane = panel?.getAttribute('data-culture-lane-panel');
+            if (!input.checked) {
+                removeId(id);
+                renderAll();
+                return;
+            }
+            const student = roster.find((s) => Number(s.id) === id)
+                || selected.male.find((s) => Number(s.id) === id)
+                || selected.female.find((s) => Number(s.id) === id)
+                || selected.pending.find((s) => Number(s.id) === id);
+            addStudent(student, panelLane || lane);
+        });
+
+        pendingBox?.addEventListener('click', (event) => {
+            const btn = event.target.closest('[data-pending-to]');
+            if (!btn) return;
+            const card = btn.closest('[data-pending-id]');
+            const id = Number(card?.getAttribute('data-pending-id'));
+            const student = selected.pending.find((s) => Number(s.id) === id)
+                || roster.find((s) => Number(s.id) === id);
+            addStudent(student, btn.getAttribute('data-pending-to'));
+        });
+
+        renderAll();
+    });
+
     const reportForm = document.querySelector('[data-report-form]');
     reportForm?.addEventListener('change', (event) => {
         if (event.target.matches('[data-report-refresh]')) {
