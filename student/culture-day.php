@@ -115,6 +115,7 @@ $filterMatch = static function (array $culture) use ($searchNeedle): bool {
                 </div>
                 <button class="btn btn-ghost is-active" type="button" data-culture-toggle-students>Hide students</button>
                 <button class="btn btn-ghost" type="button" data-culture-fit>Reset view</button>
+                <button class="btn btn-ghost" type="button" data-culture-fullscreen aria-pressed="false">Full screen</button>
             </div>
             <div class="culture-network-shell">
                 <div class="culture-network-canvas" data-culture-canvas></div>
@@ -126,6 +127,7 @@ $filterMatch = static function (array $culture) use ($searchNeedle): bool {
                     <p><span class="culture-dot culture-dot-male"></span> Male</p>
                     <p><span class="culture-dot culture-dot-female"></span> Female</p>
                 </aside>
+                <button class="culture-network-fs-exit btn btn-ghost" type="button" data-culture-fullscreen-exit hidden>Exit full screen · Esc</button>
             </div>
             <p class="muted culture-network-status" data-culture-network-status>Preparing 3D graph…</p>
         </div>

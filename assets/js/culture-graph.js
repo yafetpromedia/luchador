@@ -210,6 +210,8 @@
         const searchInput = root.querySelector('[data-culture-network-search]');
         const studentsToggle = root.querySelector('[data-culture-toggle-students]');
         const fitBtn = root.querySelector('[data-culture-fit]');
+        const fullscreenBtn = root.querySelector('[data-culture-fullscreen]');
+        const fullscreenExitBtn = root.querySelector('[data-culture-fullscreen-exit]');
         const status = root.querySelector('[data-culture-network-status]');
         const focusBox = root.querySelector('[data-culture-network-focus]');
         if (!canvas) return;
@@ -235,6 +237,74 @@
         let fg = null;
         let selectedId = null;
         let cameraReady = false;
+        let cssFullscreen = false;
+
+        const resizeGraph = () => {
+            if (!fg) return;
+            fg.width(canvas.clientWidth);
+            fg.height(canvas.clientHeight);
+        };
+
+        const isFullscreen = () => (
+            cssFullscreen
+            || document.fullscreenElement === root
+            || document.webkitFullscreenElement === root
+        );
+
+        const syncFullscreenUi = () => {
+            const on = isFullscreen();
+            root.classList.toggle('is-fullscreen', on);
+            document.body.classList.toggle('culture-network-fs-lock', on);
+            if (fullscreenBtn) {
+                fullscreenBtn.textContent = on ? 'Exit full screen' : 'Full screen';
+                fullscreenBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+                fullscreenBtn.classList.toggle('is-active', on);
+            }
+            if (fullscreenExitBtn) {
+                fullscreenExitBtn.hidden = !on;
+            }
+            window.requestAnimationFrame(() => {
+                resizeGraph();
+                window.setTimeout(resizeGraph, 80);
+            });
+        };
+
+        const enterFullscreen = async () => {
+            try {
+                if (root.requestFullscreen) {
+                    await root.requestFullscreen();
+                } else if (root.webkitRequestFullscreen) {
+                    root.webkitRequestFullscreen();
+                } else {
+                    cssFullscreen = true;
+                }
+            } catch (e) {
+                cssFullscreen = true;
+            }
+            syncFullscreenUi();
+        };
+
+        const exitFullscreen = async () => {
+            cssFullscreen = false;
+            try {
+                if (document.fullscreenElement) {
+                    await document.exitFullscreen();
+                } else if (document.webkitFullscreenElement && document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                }
+            } catch (e) {
+                // CSS fallback still cleared above.
+            }
+            syncFullscreenUi();
+        };
+
+        const toggleFullscreen = () => {
+            if (isFullscreen()) {
+                exitFullscreen();
+            } else {
+                enterFullscreen();
+            }
+        };
 
         const setFocus = (node) => {
             selectedId = node ? node.id : null;
@@ -439,15 +509,10 @@
                     // optional
                 }
 
-                const resize = () => {
-                    if (!fg) return;
-                    fg.width(canvas.clientWidth);
-                    fg.height(canvas.clientHeight);
-                };
-                resize();
-                window.addEventListener('resize', resize);
+                resizeGraph();
+                window.addEventListener('resize', resizeGraph);
                 if (window.ResizeObserver) {
-                    new ResizeObserver(resize).observe(canvas);
+                    new ResizeObserver(resizeGraph).observe(canvas);
                 }
             }
 
@@ -493,6 +558,22 @@
             setFocus(null);
             refreshObjects();
             fitCamera(800);
+        });
+
+        fullscreenBtn?.addEventListener('click', (event) => {
+            event.preventDefault();
+            toggleFullscreen();
+        });
+        fullscreenExitBtn?.addEventListener('click', (event) => {
+            event.preventDefault();
+            exitFullscreen();
+        });
+        document.addEventListener('fullscreenchange', syncFullscreenUi);
+        document.addEventListener('webkitfullscreenchange', syncFullscreenUi);
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && cssFullscreen) {
+                exitFullscreen();
+            }
         });
 
         redraw({ resetCamera: true });

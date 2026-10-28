@@ -4086,10 +4086,65 @@ a.interact-link:hover { border-color: #111113; }
 .culture-dot-male { background: #93c5fd; border-color: #1d4ed8; }
 .culture-dot-female { background: #f9a8d4; border-color: #be185d; }
 .culture-network-status { margin: 0; }
+.culture-network-fs-exit {
+    position: absolute;
+    top: 0.95rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 4;
+    background: rgba(255, 255, 255, 0.92) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(228, 224, 216, 0.95) !important;
+    box-shadow: 0 10px 24px rgba(28, 25, 23, 0.08);
+}
+.culture-network.is-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    gap: 0;
+    padding: 0.85rem;
+    background:
+        radial-gradient(ellipse 70% 55% at 18% 12%, rgba(245, 158, 11, 0.12), transparent 55%),
+        radial-gradient(ellipse 60% 50% at 88% 78%, rgba(37, 99, 235, 0.09), transparent 50%),
+        #f4f1ec;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+}
+.culture-network.is-fullscreen .culture-network-toolbar {
+    background: rgba(255, 255, 255, 0.86);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(228, 224, 216, 0.9);
+    border-radius: 16px;
+    padding: 0.65rem 0.75rem;
+}
+.culture-network.is-fullscreen .culture-network-shell {
+    min-height: 0;
+    height: 100%;
+    border-radius: 18px;
+}
+.culture-network.is-fullscreen .culture-network-canvas {
+    height: 100%;
+    min-height: 0;
+}
+.culture-network.is-fullscreen .culture-network-status {
+    padding: 0.35rem 0.15rem 0;
+}
+.culture-network.is-fullscreen .culture-network-fs-exit:not([hidden]) {
+    display: inline-flex;
+}
+.culture-network-fs-exit[hidden] {
+    display: none !important;
+}
+body.culture-network-fs-lock {
+    overflow: hidden;
+}
 @media (max-width: 720px) {
     .culture-network-canvas { min-height: 380px; height: min(62vh, 520px); }
     .culture-network-focus { width: min(200px, calc(100% - 1.6rem)); padding: 0.7rem 0.8rem; }
     .culture-network-legend { font-size: 0.7rem; padding: 0.6rem 0.7rem; }
+    .culture-network.is-fullscreen { padding: 0.55rem; }
 }
 .culture-graph {
     display: grid;
