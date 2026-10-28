@@ -114,10 +114,11 @@ $filterMatch = static function (array $culture) use ($searchNeedle): bool {
                     <input type="search" data-culture-network-search placeholder="Filter culture, group, name, or ID" autocomplete="off" value="<?= e($q) ?>">
                 </div>
                 <button class="btn btn-ghost is-active" type="button" data-culture-toggle-students>Hide students</button>
-                <button class="btn btn-ghost" type="button" data-culture-fit>Fit view</button>
+                <button class="btn btn-ghost" type="button" data-culture-fit>Reset view</button>
             </div>
             <div class="culture-network-shell">
                 <div class="culture-network-canvas" data-culture-canvas></div>
+                <aside class="culture-network-focus" data-culture-network-focus aria-live="polite"></aside>
                 <aside class="culture-network-legend" aria-label="Graph legend">
                     <p><span class="culture-dot culture-dot-event"></span> Culture Day</p>
                     <p><span class="culture-dot culture-dot-culture"></span> Culture</p>
@@ -126,7 +127,7 @@ $filterMatch = static function (array $culture) use ($searchNeedle): bool {
                     <p><span class="culture-dot culture-dot-female"></span> Female</p>
                 </aside>
             </div>
-            <p class="muted culture-network-status" data-culture-network-status>Preparing graph…</p>
+            <p class="muted culture-network-status" data-culture-network-status>Preparing 3D graph…</p>
         </div>
     <?php endif; ?>
 </section>

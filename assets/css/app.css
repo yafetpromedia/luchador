@@ -3961,53 +3961,123 @@ a.interact-link:hover { border-color: #111113; }
 }
 .culture-network-shell {
     position: relative;
-    border: 1px solid #e7e3db;
-    border-radius: 18px;
+    border: 1px solid #e4e0d8;
+    border-radius: 22px;
     overflow: hidden;
+    isolation: isolate;
     background:
-        radial-gradient(circle at top left, rgba(245, 158, 11, 0.08), transparent 28%),
-        radial-gradient(circle at bottom right, rgba(37, 99, 235, 0.06), transparent 30%),
-        #fff;
+        radial-gradient(ellipse 70% 55% at 18% 12%, rgba(245, 158, 11, 0.14), transparent 55%),
+        radial-gradient(ellipse 60% 50% at 88% 78%, rgba(37, 99, 235, 0.1), transparent 50%),
+        radial-gradient(ellipse 45% 40% at 55% 40%, rgba(91, 76, 219, 0.06), transparent 60%),
+        linear-gradient(165deg, #fbfaf7 0%, #f3f0ea 48%, #ebe7df 100%);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.75),
+        0 18px 40px rgba(28, 25, 23, 0.06);
 }
 .culture-network-canvas {
+    position: relative;
     width: 100%;
-    height: min(68vh, 640px);
-    min-height: 420px;
+    height: min(72vh, 680px);
+    min-height: 460px;
+    z-index: 1;
+}
+.culture-network-canvas canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+    outline: none;
 }
 .culture-network-legend {
     position: absolute;
-    left: 0.85rem;
-    bottom: 0.85rem;
-    z-index: 2;
-    background: rgba(255, 255, 255, 0.94);
-    border: 1px solid #ebe6de;
-    border-radius: 14px;
-    padding: 0.7rem 0.85rem;
-    box-shadow: 0 10px 30px rgba(17, 17, 17, 0.06);
+    left: 0.95rem;
+    bottom: 0.95rem;
+    z-index: 3;
+    background: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(228, 224, 216, 0.9);
+    border-radius: 16px;
+    padding: 0.75rem 0.9rem;
+    box-shadow: 0 12px 28px rgba(28, 25, 23, 0.07);
     display: grid;
-    gap: 0.35rem;
-    font-size: 0.78rem;
+    gap: 0.4rem;
+    font-size: 0.76rem;
+    letter-spacing: 0.01em;
 }
 .culture-network-legend p {
     margin: 0;
     display: flex;
     align-items: center;
-    gap: 0.45rem;
-    color: #555;
+    gap: 0.5rem;
+    color: #57534e;
+}
+.culture-network-focus {
+    position: absolute;
+    right: 0.95rem;
+    top: 0.95rem;
+    z-index: 3;
+    width: min(240px, calc(100% - 2rem));
+    background: rgba(255, 255, 255, 0.86);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(228, 224, 216, 0.9);
+    border-radius: 16px;
+    padding: 0.85rem 1rem;
+    box-shadow: 0 12px 28px rgba(28, 25, 23, 0.07);
+    display: grid;
+    gap: 0.35rem;
+}
+.culture-network-focus strong {
+    font-size: 0.98rem;
+    letter-spacing: -0.02em;
+    color: #1c1917;
+    line-height: 1.25;
+}
+.culture-network-focus .muted {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.4;
+}
+.culture-network-focus-kind {
+    margin: 0;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #78716c;
+    font-weight: 650;
+}
+.culture-network-focus-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.15rem;
+}
+.culture-network-focus-meta span {
+    font-size: 0.72rem;
+    color: #57534e;
+    background: #f5f2ec;
+    border-radius: 999px;
+    padding: 0.2rem 0.55rem;
 }
 .culture-dot {
-    width: 0.7rem;
-    height: 0.7rem;
+    width: 0.72rem;
+    height: 0.72rem;
     border-radius: 50%;
     display: inline-block;
     border: 2px solid transparent;
+    box-shadow: 0 1px 4px rgba(28, 25, 23, 0.12);
 }
 .culture-dot-event { background: #f59e0b; border-color: #b45309; }
-.culture-dot-culture { background: #7c3aed; }
-.culture-dot-group { background: #eff6ff; border-color: #2563eb; }
-.culture-dot-male { background: #dbeafe; border-color: #1d4ed8; }
-.culture-dot-female { background: #fce7f3; border-color: #be185d; }
+.culture-dot-culture { background: #5b4cdb; }
+.culture-dot-group { background: #dbeafe; border-color: #2563eb; }
+.culture-dot-male { background: #93c5fd; border-color: #1d4ed8; }
+.culture-dot-female { background: #f9a8d4; border-color: #be185d; }
 .culture-network-status { margin: 0; }
+@media (max-width: 720px) {
+    .culture-network-canvas { min-height: 380px; height: min(62vh, 520px); }
+    .culture-network-focus { width: min(200px, calc(100% - 1.6rem)); padding: 0.7rem 0.8rem; }
+    .culture-network-legend { font-size: 0.7rem; padding: 0.6rem 0.7rem; }
+}
 .culture-graph {
     display: grid;
     gap: 0.65rem;
