@@ -3959,6 +3959,47 @@ a.interact-link:hover { border-color: #111113; }
     gap: 0.65rem;
     align-items: center;
 }
+.culture-network-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    align-items: end;
+}
+.culture-network-filter {
+    display: grid;
+    gap: 0.28rem;
+    min-width: min(11rem, 100%);
+    font-size: 0.78rem;
+    color: #57534e;
+}
+.culture-network-filter span {
+    font-weight: 650;
+    letter-spacing: 0.02em;
+}
+.culture-network-filter select {
+    min-height: 2.45rem;
+    border-radius: 12px;
+    border: 1px solid #e4e0d8;
+    background: #fff;
+    padding: 0.45rem 0.7rem;
+    color: #1c1917;
+    font: inherit;
+}
+.culture-network-filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: center;
+    padding-bottom: 0.1rem;
+}
+.culture-network.is-fullscreen .culture-network-filters {
+    background: rgba(255, 255, 255, 0.86);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(228, 224, 216, 0.9);
+    border-radius: 16px;
+    padding: 0.65rem 0.75rem;
+}
 .culture-network-shell {
     position: relative;
     border: 1px solid #e4e0d8;
@@ -4102,14 +4143,14 @@ a.interact-link:hover { border-color: #111113; }
     position: fixed;
     inset: 0;
     z-index: 1200;
-    gap: 0;
+    gap: 0.55rem;
     padding: 0.85rem;
     background:
         radial-gradient(ellipse 70% 55% at 18% 12%, rgba(245, 158, 11, 0.12), transparent 55%),
         radial-gradient(ellipse 60% 50% at 88% 78%, rgba(37, 99, 235, 0.09), transparent 50%),
         #f4f1ec;
     display: grid;
-    grid-template-rows: auto 1fr auto;
+    grid-template-rows: auto auto 1fr auto;
 }
 .culture-network.is-fullscreen .culture-network-toolbar {
     background: rgba(255, 255, 255, 0.86);

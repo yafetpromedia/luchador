@@ -467,11 +467,32 @@ $filterMatch = static function (array $culture) use ($searchNeedle): bool {
         >
             <div class="culture-network-toolbar">
                 <div class="culture-roster-search" style="flex:1;margin:0">
-                    <input type="search" data-culture-network-search placeholder="Filter culture, group, name, or ID" autocomplete="off">
+                    <input type="search" data-culture-network-search placeholder="Search name or student ID" autocomplete="off">
                 </div>
                 <button class="btn btn-ghost is-active" type="button" data-culture-toggle-students>Hide students</button>
+                <button class="btn btn-ghost is-active" type="button" data-culture-toggle-labels>Hide labels</button>
                 <button class="btn btn-ghost" type="button" data-culture-fit>Reset view</button>
                 <button class="btn btn-ghost" type="button" data-culture-fullscreen aria-pressed="false">Full screen</button>
+            </div>
+            <div class="culture-network-filters" data-culture-filters>
+                <label class="culture-network-filter">
+                    <span>Culture</span>
+                    <select data-culture-filter-culture>
+                        <option value="">All cultures</option>
+                    </select>
+                </label>
+                <label class="culture-network-filter">
+                    <span>Group</span>
+                    <select data-culture-filter-group>
+                        <option value="">All groups</option>
+                    </select>
+                </label>
+                <div class="culture-network-filter-chips" data-culture-filter-gender role="group" aria-label="Gender filter">
+                    <button type="button" class="chip is-active" data-gender="all">All</button>
+                    <button type="button" class="chip" data-gender="male">Male</button>
+                    <button type="button" class="chip" data-gender="female">Female</button>
+                </div>
+                <button class="btn btn-ghost" type="button" data-culture-clear-filters>Clear filters</button>
             </div>
             <div class="culture-network-shell">
                 <div class="culture-network-canvas" data-culture-canvas></div>

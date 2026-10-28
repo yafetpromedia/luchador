@@ -78,10 +78,19 @@
         return base + (selected ? 3.2 : 1.8);
     };
 
-    const buildDataset = (graph, { showStudents = true, query = '' } = {}) => {
+    const buildDataset = (graph, {
+        showStudents = true,
+        query = '',
+        cultureId = '',
+        groupId = '',
+        gender = 'all',
+    } = {}) => {
         const nodes = [];
         const links = [];
         const q = String(query || '').trim().toLowerCase();
+        const cultureFilter = cultureId === '' || cultureId == null ? '' : String(cultureId);
+        const groupFilter = groupId === '' || groupId == null ? '' : String(groupId);
+        const genderFilter = ['male', 'female'].includes(gender) ? gender : 'all';
         const event = graph.event || {};
         const eventId = 'event-' + (event.id || 'root');
 
@@ -95,38 +104,47 @@
         });
 
         (graph.cultures || []).forEach((culture, cultureIndex) => {
-            const cultureId = 'culture-' + culture.id;
+            if (cultureFilter !== '' && String(culture.id) !== cultureFilter) return;
+
+            const cultureIdNode = 'culture-' + culture.id;
             const color = CULTURE_COLORS[cultureIndex % CULTURE_COLORS.length];
             const cultureHay = String(culture.name || '').toLowerCase();
             let cultureMatch = q === '' || cultureHay.includes(q);
             const groupNodes = [];
 
             (culture.groups || []).forEach((group) => {
-                const groupId = 'group-' + group.id;
+                if (groupFilter !== '' && String(group.id) !== groupFilter) return;
+
+                const groupIdNode = 'group-' + group.id;
                 const groupHay = String(group.name || '').toLowerCase();
                 let groupMatch = q === '' || groupHay.includes(q) || cultureMatch;
                 const memberNodes = [];
+                let matchingMemberCount = 0;
 
                 (group.members || []).forEach((member) => {
+                    const genderValue = member.gender === 'female'
+                        ? 'female'
+                        : (member.gender === 'male' ? 'male' : 'unknown');
+                    if (genderFilter !== 'all' && genderValue !== genderFilter) return;
+
                     const memberHay = ((member.name || '') + ' ' + (member.code || '')).toLowerCase();
                     const memberMatch = q === '' || memberHay.includes(q) || groupMatch;
                     if (!memberMatch && q !== '') return;
+                    matchingMemberCount += 1;
                     if (memberMatch && q !== '') {
                         groupMatch = true;
                         cultureMatch = true;
                     }
                     if (!showStudents) return;
-                    const gender = member.gender === 'female'
-                        ? 'female'
-                        : (member.gender === 'male' ? 'male' : 'unknown');
-                    const type = 'student-' + gender;
+
+                    const type = 'student-' + genderValue;
                     const memberId = 'student-' + group.id + '-' + member.id;
                     memberNodes.push({
                         id: memberId,
                         name: member.name || 'Student',
                         type,
                         code: member.code || '',
-                        gender,
+                        gender: genderValue,
                         groupName: group.name || 'Group',
                         cultureName: culture.name || 'Culture',
                         meta: (group.name || 'Group') + (member.code ? ' · ' + member.code : ''),
@@ -134,40 +152,50 @@
                         color: TYPE_META[type].color,
                     });
                     links.push({
-                        source: groupId,
+                        source: groupIdNode,
                         target: memberId,
-                        kind: gender === 'unknown' ? 'member' : gender,
+                        kind: genderValue === 'unknown' ? 'member' : genderValue,
                     });
                 });
 
-                if (!groupMatch && memberNodes.length === 0 && q !== '') return;
-                if (groupMatch && q !== '') cultureMatch = true;
+                const hasFilterPressure = q !== '' || genderFilter !== 'all' || groupFilter !== '';
+                if (!groupMatch && memberNodes.length === 0 && matchingMemberCount === 0 && hasFilterPressure) {
+                    return;
+                }
+                if ((groupMatch || matchingMemberCount > 0) && q !== '') cultureMatch = true;
 
                 groupNodes.push({
-                    id: groupId,
+                    id: groupIdNode,
                     name: group.name || 'Group',
                     type: 'group',
                     cultureName: culture.name || 'Culture',
-                    meta: (group.member_count || memberNodes.length) + ' members · ' + (culture.name || 'Culture'),
+                    meta: (matchingMemberCount || group.member_count || memberNodes.length)
+                        + ' members · ' + (culture.name || 'Culture'),
                     val: TYPE_META.group.size,
                     color: TYPE_META.group.color,
                     _members: memberNodes,
                 });
-                links.push({ source: cultureId, target: groupId, kind: 'group' });
+                links.push({ source: cultureIdNode, target: groupIdNode, kind: 'group' });
                 memberNodes.forEach((n) => nodes.push(n));
             });
 
-            if (!cultureMatch && groupNodes.length === 0 && q !== '') return;
+            if (!cultureMatch && groupNodes.length === 0 && (q !== '' || genderFilter !== 'all' || groupFilter !== '')) {
+                return;
+            }
+            if (groupNodes.length === 0 && (cultureFilter !== '' || groupFilter !== '' || genderFilter !== 'all')) {
+                // Keep selected culture visible even if empty after gender filter.
+                if (cultureFilter === '' && groupFilter === '') return;
+            }
 
             nodes.push({
-                id: cultureId,
+                id: cultureIdNode,
                 name: culture.name || 'Culture',
                 type: 'culture',
                 meta: (culture.student_count || 0) + ' students',
                 val: TYPE_META.culture.size,
                 color,
             });
-            links.push({ source: eventId, target: cultureId, kind: 'culture' });
+            links.push({ source: eventId, target: cultureIdNode, kind: 'culture' });
             groupNodes.forEach((g) => {
                 const { _members, ...node } = g;
                 nodes.push(node);
@@ -234,10 +262,58 @@
         const SpriteText = window.SpriteText;
 
         let showStudents = true;
+        let showLabels = true;
+        let genderFilter = 'all';
         let fg = null;
         let selectedId = null;
         let cameraReady = false;
         let cssFullscreen = false;
+
+        const cultureSelect = root.querySelector('[data-culture-filter-culture]');
+        const groupSelect = root.querySelector('[data-culture-filter-group]');
+        const genderWrap = root.querySelector('[data-culture-filter-gender]');
+        const labelsToggle = root.querySelector('[data-culture-toggle-labels]');
+        const clearFiltersBtn = root.querySelector('[data-culture-clear-filters]');
+
+        const refillGroupOptions = () => {
+            if (!groupSelect) return;
+            const cultures = graph.cultures || [];
+            const selectedCulture = cultureSelect?.value || '';
+            const groups = [];
+            cultures.forEach((c) => {
+                if (selectedCulture && String(c.id) !== selectedCulture) return;
+                (c.groups || []).forEach((g) => {
+                    groups.push({
+                        id: g.id,
+                        name: (g.name || 'Group') + (selectedCulture ? '' : ' · ' + (c.name || '')),
+                    });
+                });
+            });
+            const prev = groupSelect.value || '';
+            groupSelect.innerHTML = '<option value="">All groups</option>' + groups.map((g) => (
+                '<option value="' + String(g.id) + '">' + escapeHtml(g.name) + '</option>'
+            )).join('');
+            groupSelect.value = (prev && groups.some((g) => String(g.id) === prev)) ? prev : '';
+        };
+
+        if (cultureSelect) {
+            const cultures = graph.cultures || [];
+            cultureSelect.innerHTML = '<option value="">All cultures</option>' + cultures.map((c) => (
+                '<option value="' + String(c.id) + '">' + escapeHtml(c.name || 'Culture') + '</option>'
+            )).join('');
+            cultureSelect.addEventListener('change', () => {
+                refillGroupOptions();
+                setFocus(null);
+                redraw();
+            });
+        }
+        if (groupSelect) {
+            refillGroupOptions();
+            groupSelect.addEventListener('change', () => {
+                setFocus(null);
+                redraw();
+            });
+        }
 
         const resizeGraph = () => {
             if (!fg) return;
@@ -392,23 +468,25 @@
                 group.add(halo);
             }
 
-            const sprite = new SpriteText(shortLabel(node, selected));
-            sprite.color = selected ? '#0c0a09' : '#1c1917';
-            sprite.backgroundColor = selected ? 'rgba(255,255,255,0.98)' : 'rgba(255,255,255,0.9)';
-            sprite.padding = selected ? 3.1 : 2.4;
-            sprite.borderRadius = 6;
-            sprite.borderWidth = selected ? 2.2 : 0.55;
-            sprite.borderColor = selected ? '#111111' : 'rgba(28,25,23,0.18)';
-            sprite.strokeWidth = selected ? 0.35 : 0.2;
-            sprite.strokeColor = selected ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.7)';
-            sprite.fontFace = 'system-ui, "Segoe UI", sans-serif';
-            sprite.fontWeight = selected ? '700' : '650';
-            sprite.fontSize = 56;
-            sprite.textHeight = labelHeight(node, selected);
-            sprite.center.y = 0;
-            sprite.position.y = labelOffsetY(node, selected);
-            sprite.renderOrder = selected ? 20 : 10;
-            group.add(sprite);
+            if (showLabels || selected) {
+                const sprite = new SpriteText(shortLabel(node, selected));
+                sprite.color = selected ? '#0c0a09' : '#1c1917';
+                sprite.backgroundColor = selected ? 'rgba(255,255,255,0.98)' : 'rgba(255,255,255,0.9)';
+                sprite.padding = selected ? 3.1 : 2.4;
+                sprite.borderRadius = 6;
+                sprite.borderWidth = selected ? 2.2 : 0.55;
+                sprite.borderColor = selected ? '#111111' : 'rgba(28,25,23,0.18)';
+                sprite.strokeWidth = selected ? 0.35 : 0.2;
+                sprite.strokeColor = selected ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.7)';
+                sprite.fontFace = 'system-ui, "Segoe UI", sans-serif';
+                sprite.fontWeight = selected ? '700' : '650';
+                sprite.fontSize = 56;
+                sprite.textHeight = labelHeight(node, selected);
+                sprite.center.y = 0;
+                sprite.position.y = labelOffsetY(node, selected);
+                sprite.renderOrder = selected ? 20 : 10;
+                group.add(sprite);
+            }
 
             return group;
         };
@@ -444,9 +522,16 @@
             );
         };
 
+        const currentFilters = () => ({
+            showStudents,
+            query: searchInput?.value || '',
+            cultureId: cultureSelect?.value || '',
+            groupId: groupSelect?.value || '',
+            gender: genderFilter,
+        });
+
         const redraw = ({ resetCamera = false } = {}) => {
-            const query = searchInput?.value || '';
-            const data = buildDataset(graph, { showStudents, query });
+            const data = buildDataset(graph, currentFilters());
             if (selectedId && !data.nodes.some((n) => n.id === selectedId)) {
                 setFocus(null);
             }
@@ -530,9 +615,19 @@
             }
 
             if (status) {
+                const filters = currentFilters();
+                const bits = [];
+                if (filters.cultureId) bits.push('culture');
+                if (filters.groupId) bits.push('group');
+                if (filters.gender !== 'all') bits.push(filters.gender);
+                if (filters.query) bits.push('search');
+                if (!showStudents) bits.push('students hidden');
+                if (!showLabels) bits.push('labels hidden');
                 status.textContent = data.nodes.length
-                    ? data.nodes.length + ' nodes · labels on · click to select · drag to orbit'
-                    : 'No matches for that search.';
+                    ? data.nodes.length + ' nodes'
+                        + (bits.length ? ' · filtered: ' + bits.join(', ') : '')
+                        + ' · click to select · drag to orbit'
+                    : 'No matches for those filters.';
             }
         };
 
@@ -551,6 +646,44 @@
             showStudents = !showStudents;
             studentsToggle.textContent = showStudents ? 'Hide students' : 'Show students';
             studentsToggle.classList.toggle('is-active', showStudents);
+            setFocus(null);
+            redraw();
+        });
+        labelsToggle?.addEventListener('click', () => {
+            showLabels = !showLabels;
+            labelsToggle.textContent = showLabels ? 'Hide labels' : 'Show labels';
+            labelsToggle.classList.toggle('is-active', showLabels);
+            refreshObjects();
+        });
+        genderWrap?.querySelectorAll('[data-gender]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                genderFilter = btn.getAttribute('data-gender') || 'all';
+                genderWrap.querySelectorAll('[data-gender]').forEach((el) => {
+                    el.classList.toggle('is-active', el === btn);
+                });
+                setFocus(null);
+                redraw();
+            });
+        });
+        clearFiltersBtn?.addEventListener('click', () => {
+            if (searchInput) searchInput.value = '';
+            if (cultureSelect) cultureSelect.value = '';
+            refillGroupOptions();
+            if (groupSelect) groupSelect.value = '';
+            genderFilter = 'all';
+            genderWrap?.querySelectorAll('[data-gender]').forEach((el) => {
+                el.classList.toggle('is-active', el.getAttribute('data-gender') === 'all');
+            });
+            showStudents = true;
+            if (studentsToggle) {
+                studentsToggle.textContent = 'Hide students';
+                studentsToggle.classList.add('is-active');
+            }
+            showLabels = true;
+            if (labelsToggle) {
+                labelsToggle.textContent = 'Hide labels';
+                labelsToggle.classList.add('is-active');
+            }
             setFocus(null);
             redraw();
         });
