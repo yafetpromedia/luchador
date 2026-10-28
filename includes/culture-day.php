@@ -355,16 +355,38 @@ function save_culture_day_group(int $eventId, array $src, ?int $groupId = null):
         throw new InvalidArgumentException('Culture is required.');
     }
 
-    $memberIds = [];
-    if (isset($src['member_ids']) && is_array($src['member_ids'])) {
-        foreach ($src['member_ids'] as $raw) {
-            $sid = (int) $raw;
+    $parseIds = static function ($raw): array {
+        if (!is_array($raw)) {
+            return [];
+        }
+        $ids = [];
+        foreach ($raw as $value) {
+            $sid = (int) $value;
             if ($sid > 0) {
-                $memberIds[$sid] = $sid;
+                $ids[$sid] = $sid;
+            }
+        }
+        return $ids;
+    };
+    $maleIds = $parseIds($src['male_ids'] ?? []);
+    $femaleIds = $parseIds($src['female_ids'] ?? []);
+    // Legacy single list still accepted.
+    if ($maleIds === [] && $femaleIds === [] && isset($src['member_ids'])) {
+        foreach ($parseIds($src['member_ids']) as $sid) {
+            $stu = student_by_id($sid);
+            $g = $stu ? student_gender_of($stu) : '';
+            if ($g === 'female') {
+                $femaleIds[$sid] = $sid;
+            } else {
+                $maleIds[$sid] = $sid;
             }
         }
     }
-    $memberIds = array_values($memberIds);
+    $overlap = array_intersect_key($maleIds, $femaleIds);
+    if ($overlap !== []) {
+        throw new InvalidArgumentException('A student cannot be listed in both Male and Female for the same group.');
+    }
+    $memberIds = array_values($maleIds + $femaleIds);
 
     $pdo = db();
     $pdo->beginTransaction();
@@ -395,6 +417,13 @@ function save_culture_day_group(int $eventId, array $src, ?int $groupId = null):
         }
         if ($invalid !== []) {
             throw new InvalidArgumentException('One or more student IDs are invalid.');
+        }
+
+        foreach ($maleIds as $sid) {
+            set_student_gender_value($sid, 'male');
+        }
+        foreach ($femaleIds as $sid) {
+            set_student_gender_value($sid, 'female');
         }
 
         $pdo->prepare('DELETE FROM culture_day_members WHERE group_id = ?')->execute([$groupId]);

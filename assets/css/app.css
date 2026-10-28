@@ -4085,12 +4085,19 @@ a.interact-link:hover { border-color: #111113; }
 }
 .culture-gender-tag-male { background: #e8eef8; color: #1e3a5f; }
 .culture-gender-tag-female { background: #f8e8ef; color: #5f1e3a; }
+.culture-lane-switch {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0.75rem 0 0.25rem;
+}
 .culture-gender-board {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
     margin-top: 1rem;
 }
+.culture-group-lanes { margin-top: 0.85rem; }
 .culture-gender-lane {
     border-radius: 18px;
     padding: 1.1rem;
