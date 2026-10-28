@@ -1316,6 +1316,12 @@
     background: #111113;
     overflow: hidden;
 }
+.admin-mosaic-img a {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: zoom-in;
+}
 .admin-mosaic-img img {
     width: 100%;
     height: 100%;

@@ -131,11 +131,17 @@ admin_page_head('Class dates stay private until you set Public website.');
 <div class="panel">
     <h2>Event photos</h2>
     <p class="muted"><?= count($editPhotos) ?> in this album. Remove any you do not want to keep.</p>
-    <div class="admin-mosaic">
+    <div class="admin-mosaic" data-download-label="<?= e(t('gallery.download')) ?>">
         <?php foreach ($editPhotos as $photo): ?>
             <article class="admin-mosaic-card">
                 <div class="admin-mosaic-img">
-                    <img src="<?= e(url((string) $photo['image_path'])) ?>" alt="">
+                    <?php
+                    $photoSrc = url((string) ($photo['image_path'] ?? ''));
+                    $photoCaption = (string) ($edit['title'] ?? 'Event photo');
+                    ?>
+                    <a href="<?= e($photoSrc) ?>" data-lightbox data-caption="<?= e($photoCaption) ?>" data-download="<?= e($photoSrc) ?>">
+                        <img src="<?= e($photoSrc) ?>" alt="<?= e($photoCaption) ?>" loading="lazy" decoding="async">
+                    </a>
                 </div>
                 <div class="row-actions">
                     <form method="post">

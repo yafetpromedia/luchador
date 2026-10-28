@@ -45,6 +45,9 @@ function find_gallery_photo(int $id): ?array
 
 function can_view_gallery_photo(array $row): bool
 {
+    if (is_logged_in() && function_exists('has_staff_portal_access') && has_staff_portal_access()) {
+        return true;
+    }
     if (is_logged_in() && !is_student()) {
         return true;
     }
@@ -62,6 +65,9 @@ function can_download_gallery_photo(array $row): bool
 {
     if (!can_view_gallery_photo($row)) {
         return false;
+    }
+    if (is_logged_in() && function_exists('has_staff_portal_access') && has_staff_portal_access()) {
+        return true;
     }
     if (is_logged_in() && !is_student()) {
         return true;

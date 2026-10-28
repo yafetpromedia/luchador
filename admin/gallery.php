@@ -290,10 +290,12 @@ admin_page_head('Photos stay class-only until you set Public website. For Welcom
             <?= visibility_select($edit) ?>
             <?= download_for_select($edit) ?>
         </div>
-        <div class="admin-mosaic" style="margin-top:1rem;max-width:280px">
+        <div class="admin-mosaic" style="margin-top:1rem;max-width:280px" data-download-label="<?= e(t('gallery.download')) ?>">
             <article class="admin-mosaic-card">
                 <div class="admin-mosaic-img">
-                    <img src="<?= e(gallery_photo_url((int) $edit['id'], false, 'view')) ?>" alt="<?= e((string) $edit['title']) ?>">
+                    <a <?= gallery_lightbox_attrs($edit) ?>>
+                        <img src="<?= e(gallery_photo_url((int) $edit['id'], false, 'view')) ?>" alt="<?= e((string) $edit['title']) ?>">
+                    </a>
                 </div>
             </article>
         </div>
@@ -368,11 +370,13 @@ $uploadTakenOn = (string) ($edit['taken_on'] ?? '');
 <?php if (!$rows): ?>
     <?php admin_empty('No images yet.', 'Upload class photographs above. New photos stay class-only until you choose Public website.'); ?>
 <?php else: ?>
-<div class="admin-mosaic">
+<div class="admin-mosaic" data-download-label="<?= e(t('gallery.download')) ?>">
     <?php foreach ($rows as $row): ?>
         <article class="admin-mosaic-card">
             <div class="admin-mosaic-img">
-                <img src="<?= e(gallery_photo_url((int) $row['id'], false, 'thumb')) ?>" alt="<?= e($row['title']) ?>" loading="lazy" decoding="async">
+                <a <?= gallery_lightbox_attrs($row) ?>>
+                    <img src="<?= e(gallery_photo_url((int) $row['id'], false, 'thumb')) ?>" alt="<?= e($row['title']) ?>" loading="lazy" decoding="async">
+                </a>
             </div>
             <div class="admin-mosaic-body">
                 <div>
