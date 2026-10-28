@@ -60,6 +60,21 @@ if (is_post()) {
             db()->prepare('UPDATE gallery SET download_for = ? WHERE id = ?')->execute([$next, $id]);
             log_audit('gallery.download', 'gallery', $id, $row['title'] ?? '');
             flash_set('success', 'Download access updated.');
+        } elseif (posted('action') === 'rotate') {
+            require_permission('gallery.edit');
+            $id = request_int('id');
+            $degrees = (int) posted('degrees');
+            if (!in_array($degrees, [90, 180, 270], true)) {
+                $degrees = 90;
+            }
+            if (!gallery_rotate_photo($id, $degrees)) {
+                throw new InvalidArgumentException('Could not rotate this photo. Enable PHP GD on the server.');
+            }
+            log_audit('gallery.rotate', 'gallery', $id);
+            flash_set('success', 'Photo rotated.');
+            if (request_str('edit') !== '' || posted('stay_edit') === '1') {
+                redirect('admin/gallery.php?edit=' . $id);
+            }
         } elseif (posted('action') === 'save') {
             require_permission('gallery.edit');
             $id = request_int('id');
@@ -236,7 +251,7 @@ if (is_post()) {
     redirect('admin/gallery.php');
 }
 
-$rows = db()->query('SELECT * FROM gallery ORDER BY id DESC')->fetchAll();
+$rows = db()->query('SELECT * FROM gallery ORDER BY id ASC')->fetchAll();
 $calendarEvents = can('events.edit') ? event_options_for_album() : [];
 admin_header($edit ? 'Edit photo' : 'Gallery', 'gallery');
 admin_page_head('Photos stay class-only until you set Public website. For Welcome Day and other class events, add photos to the calendar event album instead of separate Gallery cards.');
@@ -281,6 +296,14 @@ admin_page_head('Photos stay class-only until you set Public website. For Welcom
             <a class="btn btn-ghost" href="#upload-photos">Add more photos</a>
             <a class="btn btn-ghost" href="<?= e(url('admin/gallery.php')) ?>">Done</a>
         </div>
+    </form>
+    <form method="post" style="margin-top:0.75rem">
+        <?= csrf_field() ?>
+        <input type="hidden" name="action" value="rotate">
+        <input type="hidden" name="id" value="<?= (int) $edit['id'] ?>">
+        <input type="hidden" name="stay_edit" value="1">
+        <input type="hidden" name="degrees" value="90">
+        <button class="btn btn-ghost" type="submit">Rotate 90°</button>
     </form>
 </div>
 <?php endif; ?>
@@ -387,6 +410,7 @@ $uploadTakenOn = (string) ($edit['taken_on'] ?? '');
             <div class="row-actions">
                 <?php if (can('gallery.edit')): ?>
                 <a class="btn btn-sm btn-ghost" href="<?= e(url('admin/gallery.php?edit=' . (int) $row['id'])) ?>">Edit</a>
+                <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="rotate"><input type="hidden" name="id" value="<?= (int) $row['id'] ?>"><input type="hidden" name="degrees" value="90"><button class="btn btn-sm btn-ghost" type="submit">Rotate 90°</button></form>
                 <?php endif; ?>
                 <a class="btn btn-sm btn-ghost" href="<?= e(gallery_photo_url((int) $row['id'], true)) ?>"><?= icon('download', 16) ?> Download</a>
                 <?php if (can('gallery.edit')): ?>

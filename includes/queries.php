@@ -376,17 +376,18 @@ function class_announcements(?int $limit = null): array
 
 function visible_gallery(string $audience = 'public', ?string $category = null): array
 {
+    // First uploaded first (id ASC).
     if ($category && $category !== 'all') {
         return visible_content_rows(
             'gallery',
             $audience,
-            'ORDER BY (taken_on IS NULL), taken_on DESC, id DESC',
+            'ORDER BY id ASC',
             null,
             'category = ?',
             [$category]
         );
     }
-    return visible_content_rows('gallery', $audience, 'ORDER BY (taken_on IS NULL), taken_on DESC, id DESC');
+    return visible_content_rows('gallery', $audience, 'ORDER BY id ASC');
 }
 
 function published_gallery(?string $category = null): array

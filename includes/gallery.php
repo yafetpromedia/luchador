@@ -138,32 +138,36 @@ function gallery_photo_derivative(string $fullPath, string $relative, string $si
     }
 
     $mtime = (int) filemtime($fullPath);
-    $key = substr(hash('sha256', $relative . '|' . $size . '|' . $mtime), 0, 40);
+    $orientation = image_exif_orientation($fullPath);
+    $key = substr(hash('sha256', $relative . '|' . $size . '|' . $mtime . '|o' . $orientation . '|v2'), 0, 40);
     $cachePath = gallery_cache_dir() . '/' . $key . '.jpg';
     if (is_file($cachePath) && filesize($cachePath) > 0) {
         return $cachePath;
     }
 
-    $info = @getimagesize($fullPath);
-    if ($info === false) {
+    $loaded = image_load_gd($fullPath);
+    if ($loaded === null) {
         return null;
     }
-    [$width, $height] = $info;
-    if ($width < 1 || $height < 1) {
+    [$source, $mime] = $loaded;
+    $oriented = image_apply_exif_orientation($source, $orientation);
+    if ($oriented === false) {
+        imagedestroy($source);
         return null;
     }
-    if ($width <= $max && $height <= $max && ($info['mime'] ?? '') === 'image/jpeg') {
-        return null;
+    if ($oriented !== $source) {
+        imagedestroy($source);
+        $source = $oriented;
     }
 
-    $source = match ($info['mime'] ?? '') {
-        'image/jpeg' => @imagecreatefromjpeg($fullPath),
-        'image/png' => @imagecreatefrompng($fullPath),
-        'image/webp' => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($fullPath) : false,
-        'image/gif' => @imagecreatefromgif($fullPath),
-        default => false,
-    };
-    if ($source === false) {
+    $width = imagesx($source);
+    $height = imagesy($source);
+    if ($width < 1 || $height < 1) {
+        imagedestroy($source);
+        return null;
+    }
+    if ($width <= $max && $height <= $max && $mime === 'image/jpeg' && $orientation <= 1) {
+        imagedestroy($source);
         return null;
     }
 
@@ -188,6 +192,23 @@ function gallery_photo_derivative(string $fullPath, string $relative, string $si
         return null;
     }
     return $cachePath;
+}
+
+function gallery_rotate_photo(int $id, int $degrees = 90): bool
+{
+    $row = find_gallery_photo($id);
+    if (!$row) {
+        return false;
+    }
+    $relative = str_replace('\\', '/', trim((string) ($row['image_path'] ?? '')));
+    if ($relative === '' || str_contains($relative, '..') || !str_starts_with($relative, 'uploads/gallery/')) {
+        return false;
+    }
+    $full = APP_ROOT . '/' . $relative;
+    if (!is_file($full)) {
+        return false;
+    }
+    return rotate_image_file($full, $degrees);
 }
 
 function gallery_download_filename(array $row, string $ext): string

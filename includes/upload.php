@@ -113,11 +113,138 @@ function store_upload(array $file, string $folder, int $maxBytes = 0): array
         return ['ok' => false, 'error' => 'The file could not be saved.'];
     }
 
+    normalize_image_orientation($dest);
+
     return [
         'ok' => true,
         'path' => 'uploads/' . $folder . '/' . $name,
         'filename' => $name,
     ];
+}
+
+function image_exif_orientation(string $path): int
+{
+    if (!is_file($path) || !function_exists('exif_read_data')) {
+        return 1;
+    }
+    $exif = @exif_read_data($path);
+    $orientation = (int) ($exif['Orientation'] ?? 1);
+    return $orientation >= 1 && $orientation <= 8 ? $orientation : 1;
+}
+
+/** @param \GdImage $image @return \GdImage|false */
+function image_apply_exif_orientation($image, int $orientation)
+{
+    switch ($orientation) {
+        case 2:
+            imageflip($image, IMG_FLIP_HORIZONTAL);
+            return $image;
+        case 3:
+            return imagerotate($image, 180, 0);
+        case 4:
+            imageflip($image, IMG_FLIP_VERTICAL);
+            return $image;
+        case 5:
+            imageflip($image, IMG_FLIP_HORIZONTAL);
+            return imagerotate($image, 270, 0);
+        case 6:
+            return imagerotate($image, 270, 0);
+        case 7:
+            imageflip($image, IMG_FLIP_HORIZONTAL);
+            return imagerotate($image, 90, 0);
+        case 8:
+            return imagerotate($image, 90, 0);
+        default:
+            return $image;
+    }
+}
+
+/** @return array{0:\GdImage,1:string}|null */
+function image_load_gd(string $path): ?array
+{
+    if (!extension_loaded('gd') || !is_file($path)) {
+        return null;
+    }
+    $info = @getimagesize($path);
+    if ($info === false) {
+        return null;
+    }
+    $mime = (string) ($info['mime'] ?? '');
+    $image = match ($mime) {
+        'image/jpeg' => @imagecreatefromjpeg($path),
+        'image/png' => @imagecreatefrompng($path),
+        'image/webp' => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($path) : false,
+        'image/gif' => @imagecreatefromgif($path),
+        default => false,
+    };
+    if ($image === false) {
+        return null;
+    }
+    return [$image, $mime];
+}
+
+/** @param \GdImage $image */
+function image_save_gd($image, string $path, string $mime): bool
+{
+    return match ($mime) {
+        'image/jpeg' => imagejpeg($image, $path, 90),
+        'image/png' => imagepng($image, $path, 6),
+        'image/webp' => function_exists('imagewebp') ? imagewebp($image, $path, 90) : false,
+        'image/gif' => imagegif($image, $path),
+        default => false,
+    };
+}
+
+/** Bake EXIF orientation into pixels so photos display upright everywhere. */
+function normalize_image_orientation(string $path): bool
+{
+    $orientation = image_exif_orientation($path);
+    if ($orientation <= 1) {
+        return false;
+    }
+    $loaded = image_load_gd($path);
+    if ($loaded === null) {
+        return false;
+    }
+    [$image, $mime] = $loaded;
+    $oriented = image_apply_exif_orientation($image, $orientation);
+    if ($oriented === false) {
+        imagedestroy($image);
+        return false;
+    }
+    if ($oriented !== $image) {
+        imagedestroy($image);
+        $image = $oriented;
+    }
+    $ok = image_save_gd($image, $path, $mime);
+    imagedestroy($image);
+    return $ok;
+}
+
+/** Rotate an image file 90, 180, or 270 degrees clockwise. */
+function rotate_image_file(string $path, int $degreesClockwise = 90): bool
+{
+    $degreesClockwise = ((int) $degreesClockwise) % 360;
+    if (!in_array($degreesClockwise, [90, 180, 270], true)) {
+        return false;
+    }
+    $loaded = image_load_gd($path);
+    if ($loaded === null) {
+        return false;
+    }
+    [$image, $mime] = $loaded;
+    // GD imagerotate uses counter-clockwise degrees.
+    $rotated = imagerotate($image, 360 - $degreesClockwise, 0);
+    imagedestroy($image);
+    if ($rotated === false) {
+        return false;
+    }
+    $ok = image_save_gd($rotated, $path, $mime);
+    imagedestroy($rotated);
+    if ($ok) {
+        @touch($path);
+    }
+    return $ok;
 }
 
 function delete_upload(?string $relativePath): void
