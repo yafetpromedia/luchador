@@ -241,34 +241,44 @@ admin_page_head('Photos stay class-only until you set Public website.');
         </div>
         <div class="form-actions" style="margin-top:1rem">
             <button class="btn" type="submit">Save photo</button>
-            <a class="btn btn-ghost" href="<?= e(url('admin/gallery.php')) ?>">Cancel</a>
+            <a class="btn btn-ghost" href="#upload-photos">Add more photos</a>
+            <a class="btn btn-ghost" href="<?= e(url('admin/gallery.php')) ?>">Done</a>
         </div>
     </form>
 </div>
-<?php elseif (can('gallery.upload')): ?>
-<div class="panel">
-    <h2>Upload photos</h2>
+<?php endif; ?>
+
+<?php if (can('gallery.upload')): ?>
+<?php
+$uploadTitle = $edit ? (string) (preg_replace('/\s+\(\d+\)$/', '', (string) ($edit['title'] ?? '')) ?? '') : '';
+$uploadCategory = (string) ($edit['category'] ?? 'class');
+$uploadCaption = (string) ($edit['caption'] ?? '');
+$uploadTakenOn = (string) ($edit['taken_on'] ?? '');
+?>
+<div class="panel" id="upload-photos">
+    <h2><?= $edit ? 'Upload more photos' : 'Upload photos' ?></h2>
+    <p class="muted">Hold Ctrl (or Cmd) and click to select many files at once, then upload.</p>
     <form method="post" enctype="multipart/form-data" data-loading>
         <?= csrf_field() ?>
         <div class="form-grid">
-            <div class="form-group"><label>Title</label><input name="title" required placeholder="e.g. Welcome Day"></div>
+            <div class="form-group"><label>Title</label><input name="title" required placeholder="e.g. Welcome Day" value="<?= e($uploadTitle) ?>"></div>
             <div class="form-group">
                 <label>Category</label>
                 <select name="category">
                     <?php foreach (gallery_categories() as $key => $label): if ($key === 'all') continue; ?>
-                        <option value="<?= e($key) ?>"><?= e($label) ?></option>
+                        <option value="<?= e($key) ?>"<?= $uploadCategory === $key ? ' selected' : '' ?>><?= e($label) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="form-group full"><label>Caption</label><input name="caption"></div>
-            <div class="form-group"><label>Date</label><input type="date" name="taken_on"></div>
+            <div class="form-group full"><label>Caption</label><input name="caption" value="<?= e($uploadCaption) ?>"></div>
+            <div class="form-group"><label>Date</label><input type="date" name="taken_on" value="<?= e($uploadTakenOn) ?>"></div>
             <div class="form-group full">
                 <label>Images</label>
                 <input type="file" name="images[]" accept="image/jpeg,image/png,image/webp,image/gif" multiple required>
                 <p class="muted">Select many at once — 24 or more is fine. Same title, caption, date, and visibility apply to every file. JPG, PNG, WEBP, or GIF up to <?= e(upload_max_label()) ?> each.</p>
             </div>
-            <?= visibility_select() ?>
-            <?= download_for_select() ?>
+            <?= visibility_select($edit) ?>
+            <?= download_for_select($edit) ?>
         </div>
         <div class="form-actions" style="margin-top:1rem"><button class="btn" type="submit">Upload photos</button></div>
     </form>
