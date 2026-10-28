@@ -192,11 +192,20 @@ function notifications_for_viewer(int $limit = 30, int $sinceId = 0): array
     $where = '';
     $params = [];
     notifications_visible_where($user, $where, $params);
-    $sql = "SELECT n.*, CASE WHEN r.user_id IS NULL THEN 0 ELSE 1 END AS is_read
+    $hasDismissals = table_exists(db(), 'notification_dismissals');
+    $sql = 'SELECT n.*, CASE WHEN r.user_id IS NULL THEN 0 ELSE 1 END AS is_read
             FROM notifications n
-            LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.user_id = ?
-            WHERE $where AND n.created_at >= DATE_SUB(NOW(), INTERVAL 60 DAY)";
-    array_unshift($params, $userId);
+            LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.user_id = ?';
+    $bind = [$userId];
+    if ($hasDismissals) {
+        $sql .= ' LEFT JOIN notification_dismissals d ON d.notification_id = n.id AND d.user_id = ?';
+        $bind[] = $userId;
+    }
+    $sql .= " WHERE $where AND n.created_at >= DATE_SUB(NOW(), INTERVAL 60 DAY)";
+    if ($hasDismissals) {
+        $sql .= ' AND d.user_id IS NULL';
+    }
+    $params = array_merge($bind, $params);
     if ($sinceId > 0) {
         $sql .= ' AND n.id > ?';
         $params[] = $sinceId;
@@ -217,12 +226,20 @@ function notification_unread_count(?array $user = null): int
     $where = '';
     $params = [];
     notifications_visible_where($user, $where, $params);
-    $sql = "SELECT COUNT(*) FROM notifications n
-            LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.user_id = ?
-            WHERE $where AND r.user_id IS NULL AND n.created_at >= DATE_SUB(NOW(), INTERVAL 60 DAY)";
-    array_unshift($params, $userId);
+    $hasDismissals = table_exists(db(), 'notification_dismissals');
+    $sql = 'SELECT COUNT(*) FROM notifications n
+            LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.user_id = ?';
+    $bind = [$userId];
+    if ($hasDismissals) {
+        $sql .= ' LEFT JOIN notification_dismissals d ON d.notification_id = n.id AND d.user_id = ?';
+        $bind[] = $userId;
+    }
+    $sql .= " WHERE $where AND r.user_id IS NULL AND n.created_at >= DATE_SUB(NOW(), INTERVAL 60 DAY)";
+    if ($hasDismissals) {
+        $sql .= ' AND d.user_id IS NULL';
+    }
     $stmt = db()->prepare($sql);
-    $stmt->execute($params);
+    $stmt->execute(array_merge($bind, $params));
     return (int) $stmt->fetchColumn();
 }
 
@@ -261,6 +278,43 @@ function notification_mark_all_read(int $userId): void
             notification_mark_read((int) $row['id'], $userId);
         }
     }
+}
+
+function notification_dismiss(int $id, int $userId): void
+{
+    if ($id < 1 || $userId < 1) {
+        return;
+    }
+    if (!table_exists(db(), 'notification_dismissals')) {
+        migrate_notifications(db());
+    }
+    if (!table_exists(db(), 'notification_dismissals')) {
+        return;
+    }
+    // Mark read as well so badge counts stay consistent if dismissal is ever undone.
+    notification_mark_read($id, $userId);
+    db()->prepare(
+        'INSERT IGNORE INTO notification_dismissals (notification_id, user_id, dismissed_at) VALUES (?, ?, NOW())'
+    )->execute([$id, $userId]);
+}
+
+function notification_visible_to_user(int $id, ?array $user = null): bool
+{
+    if ($id < 1 || !table_exists(db(), 'notifications')) {
+        return false;
+    }
+    $user = $user ?? current_user();
+    if ($user === null) {
+        return false;
+    }
+    $where = '';
+    $params = [];
+    notifications_visible_where($user, $where, $params);
+    $sql = "SELECT n.id FROM notifications n WHERE $where AND n.id = ? LIMIT 1";
+    $params[] = $id;
+    $stmt = db()->prepare($sql);
+    $stmt->execute($params);
+    return (bool) $stmt->fetchColumn();
 }
 
 function notification_present(array $row, string $portal = 'public'): array
@@ -323,8 +377,9 @@ function render_notification_bell(string $portal): void
     $label = $unread > 0 ? t('notif.label_unread', ['n' => $countText]) : t('notif.label');
     $empty = t('notif.empty');
     $markAll = t('notif.mark_all');
+    $deleteLabel = t('notif.delete');
 
-    echo '<div class="notif-bell" data-notifications data-portal="' . e($portal) . '" data-empty="' . e($empty) . '" data-label="' . e(t('notif.label')) . '" data-unread="' . e(t('notif.label_unread')) . '">';
+    echo '<div class="notif-bell" data-notifications data-portal="' . e($portal) . '" data-empty="' . e($empty) . '" data-label="' . e(t('notif.label')) . '" data-unread="' . e(t('notif.label_unread')) . '" data-delete="' . e($deleteLabel) . '">';
     echo '<button type="button" class="notif-toggle" aria-expanded="false" aria-controls="' . e($panelId) . '" aria-label="' . e($label) . '">';
     echo icon('bell', 18);
     echo '<span class="notif-count"' . $countHidden . '>' . e($countText) . '</span>';
@@ -332,22 +387,8 @@ function render_notification_bell(string $portal): void
     echo '<div class="notif-panel" id="' . e($panelId) . '" hidden>';
     echo '<div class="notif-head"><strong>' . e(t('notif.title')) . '</strong>';
     echo '<button type="button" class="notif-read-all" data-notif-read-all>' . e($markAll) . '</button></div>';
-    echo '<div class="notif-list" data-notif-list>';
-    if (empty($payload['items'])) {
-        echo '<p class="notif-empty">' . e($empty) . '</p>';
-    } else {
-        foreach ($payload['items'] as $item) {
-            $href = $item['url'] !== '' ? $item['url'] : '#';
-            $readClass = !empty($item['read']) ? ' is-read' : '';
-            echo '<a class="notif-item' . $readClass . '" href="' . e($href) . '" data-notif-id="' . (int) $item['id'] . '">';
-            echo '<span class="notif-item-title">' . e($item['title']) . '</span>';
-            if ($item['body'] !== '') {
-                echo '<span class="notif-item-body">' . e($item['body']) . '</span>';
-            }
-            echo '<span class="notif-item-when">' . e($item['when']) . '</span></a>';
-        }
-    }
-    echo '</div></div>';
+    echo '<div class="notif-list" data-notif-list></div>';
+    echo '</div>';
     echo '<script type="application/json" data-notif-bootstrap>' . $json . '</script>';
     echo '</div>';
 }

@@ -88,6 +88,7 @@ return [
 
     'notif.title' => 'Notifications',
     'notif.mark_all' => 'Mark all read',
+    'notif.delete' => 'Delete notification',
     'notif.empty' => 'No notifications yet.',
     'notif.label' => 'Notifications',
     'notif.label_unread' => 'Notifications, {n} unread',

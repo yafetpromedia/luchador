@@ -393,6 +393,7 @@
 
     const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     const guestReadKey = 'luchador_notif_read';
+    const guestDismissKey = 'luchador_notif_dismissed';
     const guestReads = () => {
         try {
             const raw = JSON.parse(localStorage.getItem(guestReadKey) || '[]');
@@ -403,6 +404,17 @@
     };
     const storeGuestReads = (ids) => {
         localStorage.setItem(guestReadKey, JSON.stringify([...new Set(ids)].slice(-200)));
+    };
+    const guestDismissed = () => {
+        try {
+            const raw = JSON.parse(localStorage.getItem(guestDismissKey) || '[]');
+            return Array.isArray(raw) ? raw.map(Number) : [];
+        } catch (err) {
+            return [];
+        }
+    };
+    const storeGuestDismissed = (ids) => {
+        localStorage.setItem(guestDismissKey, JSON.stringify([...new Set(ids)].slice(-200)));
     };
 
     document.querySelectorAll('[data-notifications]').forEach((root) => {
@@ -419,14 +431,18 @@
 
         const applyGuestReads = () => {
             if (state.authenticated) return;
+            const dismissed = new Set(guestDismissed());
             const read = new Set(guestReads());
-            state.items = (state.items || []).map((item) => Object.assign({}, item, { read: item.read || read.has(Number(item.id)) }));
+            state.items = (state.items || [])
+                .filter((item) => !dismissed.has(Number(item.id)))
+                .map((item) => Object.assign({}, item, { read: item.read || read.has(Number(item.id)) }));
             state.unread = state.items.filter((item) => !item.read).length;
         };
 
         const emptyText = root.getAttribute('data-empty') || 'No notifications yet.';
         const notifLabel = root.getAttribute('data-label') || 'Notifications';
         const unreadTpl = root.getAttribute('data-unread') || 'Notifications, {n} unread';
+        const deleteLabel = root.getAttribute('data-delete') || 'Delete';
 
         const setCount = (n) => {
             if (!countEl) return;
@@ -437,6 +453,8 @@
 
         const render = () => {
             applyGuestReads();
+            const unread = (state.items || []).filter((item) => !item.read).length;
+            state.unread = state.authenticated ? (state.unread || unread) : unread;
             setCount(state.unread || 0);
             if (!list) return;
             if (!state.items?.length) {
@@ -446,10 +464,13 @@
             }
             list.innerHTML = state.items.map((item) => {
                 const href = item.url || '#';
-                return `<a class="notif-item${item.read ? ' is-read' : ''}" href="${href}" data-notif-id="${item.id}">` +
+                return `<div class="notif-item${item.read ? ' is-read' : ' is-unread'}" data-notif-id="${item.id}">` +
+                    `<a class="notif-item-main" href="${href}" data-notif-open>` +
                     `<span class="notif-item-title"></span>` +
                     (item.body ? `<span class="notif-item-body"></span>` : '') +
-                    `<span class="notif-item-when"></span></a>`;
+                    `<span class="notif-item-when"></span></a>` +
+                    `<button type="button" class="notif-item-delete" data-notif-delete aria-label="${deleteLabel}" title="${deleteLabel}">×</button>` +
+                    `</div>`;
             }).join('');
             [...list.querySelectorAll('.notif-item')].forEach((el, i) => {
                 const item = state.items[i];
@@ -471,10 +492,11 @@
         };
 
         const post = async (body) => {
-            if (!state.authenticated || !state.poll) return;
-            await fetch(state.poll + (state.poll.includes('?') ? '&' : '?') + 'portal=' + encodeURIComponent(state.portal), {
+            if (!state.authenticated || !state.poll) return null;
+            const response = await fetch(state.poll + (state.poll.includes('?') ? '&' : '?') + 'portal=' + encodeURIComponent(state.portal), {
                 method: 'POST',
                 credentials: 'same-origin',
+                keepalive: true,
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
@@ -483,6 +505,12 @@
                 },
                 body: JSON.stringify(Object.assign({ _csrf: csrf, portal: state.portal }, body))
             });
+            if (!response.ok) return null;
+            try {
+                return await response.json();
+            } catch (err) {
+                return null;
+            }
         };
 
         const refresh = async (announce) => {
@@ -499,15 +527,43 @@
             if (announce && newest && Number(newest.id) > prev) toast(newest);
         };
 
-        const markRead = (id) => {
+        const markRead = async (id) => {
+            if (!id) return;
+            const item = (state.items || []).find((row) => Number(row.id) === Number(id));
+            const alreadyRead = !!(item && item.read);
+            if (state.authenticated) {
+                const data = await post({ action: 'read', id: Number(id) });
+                if (data) {
+                    state = Object.assign(state, data);
+                    render();
+                    return;
+                }
+            } else {
+                storeGuestReads(guestReads().concat(Number(id)));
+            }
+            if (!alreadyRead) {
+                state.items = (state.items || []).map((row) => Number(row.id) === Number(id) ? Object.assign({}, row, { read: true }) : row);
+                state.unread = Math.max(0, (state.unread || 0) - 1);
+            }
+            render();
+        };
+
+        const deleteNotif = async (id) => {
             if (!id) return;
             if (state.authenticated) {
-                post({ action: 'read', id });
+                const data = await post({ action: 'delete', id: Number(id) });
+                if (data) {
+                    state = Object.assign(state, data);
+                    render();
+                    return;
+                }
             } else {
-                storeGuestReads(guestReads().concat(id));
+                storeGuestDismissed(guestDismissed().concat(Number(id)));
+                storeGuestReads(guestReads().concat(Number(id)));
             }
-            state.items = (state.items || []).map((item) => Number(item.id) === Number(id) ? Object.assign({}, item, { read: true }) : item);
-            state.unread = Math.max(0, (state.unread || 0) - 1);
+            const wasUnread = (state.items || []).some((row) => Number(row.id) === Number(id) && !row.read);
+            state.items = (state.items || []).filter((row) => Number(row.id) !== Number(id));
+            if (wasUnread) state.unread = Math.max(0, (state.unread || 0) - 1);
             render();
         };
 
@@ -553,13 +609,37 @@
             }
         });
         list?.addEventListener('click', (event) => {
-            const item = event.target.closest('[data-notif-id]');
-            if (!item) return;
-            markRead(Number(item.getAttribute('data-notif-id')));
+            const deleteBtn = event.target.closest('[data-notif-delete]');
+            if (deleteBtn) {
+                event.preventDefault();
+                event.stopPropagation();
+                const wrap = deleteBtn.closest('[data-notif-id]');
+                const id = Number(wrap?.getAttribute('data-notif-id'));
+                deleteNotif(id).catch(() => {});
+                return;
+            }
+            const open = event.target.closest('[data-notif-open]');
+            if (!open) return;
+            const wrap = open.closest('[data-notif-id]');
+            const id = Number(wrap?.getAttribute('data-notif-id'));
+            const href = open.getAttribute('href') || '#';
+            event.preventDefault();
+            markRead(id).finally(() => {
+                if (!href || href === '#' || href.endsWith('#')) {
+                    render();
+                    return;
+                }
+                window.location.href = href;
+            });
         });
-        readAll?.addEventListener('click', () => {
+        readAll?.addEventListener('click', async () => {
             if (state.authenticated) {
-                post({ action: 'read_all' });
+                const data = await post({ action: 'read_all' });
+                if (data) {
+                    state = Object.assign(state, data);
+                    render();
+                    return;
+                }
             } else {
                 storeGuestReads((state.items || []).map((item) => Number(item.id)));
             }

@@ -45,7 +45,7 @@ function public_header(string $title, string $active = 'home', string $descripti
     <?php endif; ?>
     <link rel="icon" href="<?= e(url('assets/images/favicon.svg')) ?>" type="image/svg+xml">
     <?php site_font_links(); ?>
-    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=73">
+    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=74">
 </head>
 <body class="<?= $onePage ? 'onepage' : '' ?>">
     <a class="skip-link" href="#main"><?= e(t('skip')) ?></a>
@@ -111,7 +111,7 @@ function public_footer(bool $onePage = false): void
             <p class="muted">&copy; <?= current_year() ?> <?= e(class_name()) ?></p>
         </div>
     </footer>
-    <script src="<?= e(url('assets/js/app.js')) ?>?v=17"></script>
+    <script src="<?= e(url('assets/js/app.js')) ?>?v=18"></script>
 </body>
 </html>
     <?php

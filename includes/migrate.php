@@ -694,6 +694,15 @@ function migrate_notifications(PDO $pdo): void
             PRIMARY KEY (notification_id, user_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS notification_dismissals (
+            notification_id INT NOT NULL,
+            user_id INT NOT NULL,
+            dismissed_at DATETIME NOT NULL,
+            PRIMARY KEY (notification_id, user_id),
+            INDEX idx_notification_dismissals_user (user_id, dismissed_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
 }
 
 function migrate_interactions(PDO $pdo): void

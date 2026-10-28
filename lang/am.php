@@ -88,6 +88,7 @@ return [
 
     'notif.title' => 'ማሳወቂያዎች',
     'notif.mark_all' => 'ሁሉንም ያንብቡ',
+    'notif.delete' => 'ማሳወቂያን ሰርዝ',
     'notif.empty' => 'ማሳወቂያ የለም።',
     'notif.label' => 'ማሳወቂያዎች',
     'notif.label_unread' => 'ማሳወቂያዎች፣ {n} ያልተነበቡ',
