@@ -23,6 +23,7 @@ function admin_nav_groups(): array
             'messages' => ['label' => t('admin.messages'), 'href' => 'admin/messages.php', 'icon' => 'message', 'can' => ['messages.view', 'messages.manage']],
             'achievements' => ['label' => t('admin.achievements'), 'href' => 'admin/achievements.php', 'icon' => 'award', 'can' => ['achievements.view', 'achievements.manage']],
             'committee' => ['label' => t('admin.committee'), 'href' => 'admin/committee.php', 'icon' => 'flag', 'can' => ['committee.view', 'committee.manage']],
+            'culture-day' => ['label' => t('admin.culture_day'), 'href' => 'admin/culture-day.php', 'icon' => 'globe', 'can' => ['culture_day.view', 'culture_day.manage', 'culture_day.publish']],
         ],
         t('admin.group.interactions') => [
             'polls' => ['label' => t('admin.polls'), 'href' => 'admin/polls.php', 'icon' => 'bar-chart', 'can' => ['polls.view', 'polls.create', 'polls.edit', 'polls.delete', 'polls.close', 'polls.results']],
@@ -58,8 +59,8 @@ function admin_header(string $title, string $active = 'index', string $bodyClass
     <title><?= e($title) ?> · <?= e(class_name()) ?> <?= e(t('admin.brand')) ?></title>
     <link rel="icon" href="<?= e(url('assets/images/favicon.svg')) ?>" type="image/svg+xml">
     <?php site_font_links(); ?>
-    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=62">
-    <link rel="stylesheet" href="<?= e(url('assets/css/admin.css')) ?>?v=42">
+    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=63">
+    <link rel="stylesheet" href="<?= e(url('assets/css/admin.css')) ?>?v=43">
 </head>
 <body class="<?= e($bodyClass) ?>">
     <a class="skip-link" href="#main"><?= e(t('skip')) ?></a>
@@ -162,8 +163,8 @@ function admin_footer(): void
             </div>
         </div>
     </div>
-    <script src="<?= e(url('assets/js/app.js')) ?>?v=13"></script>
-    <script src="<?= e(url('assets/js/admin.js')) ?>?v=10"></script>
+    <script src="<?= e(url('assets/js/app.js')) ?>?v=14"></script>
+    <script src="<?= e(url('assets/js/admin.js')) ?>?v=11"></script>
 </body>
 </html>
     <?php

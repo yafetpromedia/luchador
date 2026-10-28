@@ -824,6 +824,65 @@ function migrate_event_photos(PDO $pdo): void
     ");
 }
 
+function migrate_culture_day(PDO $pdo): void
+{
+    add_column_if_missing($pdo, 'uniforms', 'gender', 'VARCHAR(20) NULL');
+
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS culture_day_events (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            title VARCHAR(180) NOT NULL,
+            description TEXT NULL,
+            event_date DATE NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'draft',
+            created_by INT NULL,
+            published_by INT NULL,
+            published_at DATETIME NULL,
+            archived_at DATETIME NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_culture_day_events_status (status, event_date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS culture_day_cultures (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            event_id INT NOT NULL,
+            name VARCHAR(120) NOT NULL,
+            name_key VARCHAR(120) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_culture_day_culture (event_id, name_key),
+            INDEX idx_culture_day_cultures_event (event_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS culture_day_groups (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            event_id INT NOT NULL,
+            culture_id INT NOT NULL,
+            name VARCHAR(120) NOT NULL,
+            notes TEXT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_culture_day_groups_event (event_id),
+            INDEX idx_culture_day_groups_culture (culture_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS culture_day_members (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            event_id INT NOT NULL,
+            group_id INT NOT NULL,
+            student_id INT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_culture_day_group_student (group_id, student_id),
+            INDEX idx_culture_day_members_event (event_id),
+            INDEX idx_culture_day_members_student (student_id),
+            INDEX idx_culture_day_members_group (group_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+}
+
 function migrate_gallery_downloads(PDO $pdo): void
 {
     if (!table_exists($pdo, 'gallery')) {

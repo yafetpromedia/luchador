@@ -15,6 +15,7 @@ function student_nav_groups(): array
             'polls' => ['label' => t('student.polls'), 'href' => 'student/polls.php', 'icon' => 'bar-chart'],
             'decisions' => ['label' => t('student.decisions'), 'href' => 'student/decisions.php', 'icon' => 'gavel'],
             'questions' => ['label' => t('student.questions'), 'href' => 'student/questions.php', 'icon' => 'help'],
+            'culture-day' => ['label' => t('student.culture_day'), 'href' => 'student/culture-day.php', 'icon' => 'globe'],
         ],
         t('student.group.memories') => [
             'gallery' => ['label' => t('student.gallery'), 'href' => 'student/gallery.php', 'icon' => 'image'],
@@ -66,7 +67,7 @@ function student_header(string $title, string $active = 'dashboard', bool $home 
     <title><?= e($title) ?> · <?= e(class_name()) ?></title>
     <link rel="icon" href="<?= e(url('assets/images/favicon.svg')) ?>" type="image/svg+xml">
     <?php site_font_links(); ?>
-    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=62">
+    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=63">
 </head>
 <body class="student-body<?= $home ? ' is-home' : '' ?>">
     <a class="skip-link" href="#main"><?= e(t('skip')) ?></a>
@@ -169,7 +170,7 @@ function student_footer(string $active = 'dashboard'): void
             </a>
         <?php endforeach; ?>
     </nav>
-    <script src="<?= e(url('assets/js/app.js')) ?>?v=13"></script>
+    <script src="<?= e(url('assets/js/app.js')) ?>?v=14"></script>
 </body>
 </html>
     <?php

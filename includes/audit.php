@@ -69,6 +69,7 @@ function audit_label(array $row): string
         'announcement.save' => 'Saved an announcement',
         'announcement.delete' => 'Deleted an announcement',
         'gallery.upload' => 'Uploaded a gallery image',
+        'gallery.update' => 'Updated a gallery image',
         'gallery.delete' => 'Deleted a gallery image',
         'gallery.toggle' => 'Changed gallery visibility',
         'gallery.download' => 'Changed gallery download access',
@@ -120,6 +121,15 @@ function audit_label(array $row): string
         'poll.vote' => 'Voted in a poll',
         'question.respond' => 'Answered a class question',
         'question.ask' => 'Asked the committee',
+        'culture_day.event_save' => 'Saved a Culture Day event',
+        'culture_day.publish' => 'Published Culture Day',
+        'culture_day.unpublish' => 'Unpublished Culture Day',
+        'culture_day.archive' => 'Archived Culture Day',
+        'culture_day.culture_save' => 'Saved a culture',
+        'culture_day.group_save' => 'Saved a Culture Day group',
+        'culture_day.group_delete' => 'Deleted a Culture Day group',
+        'culture_day.members_save' => 'Updated Culture Day group members',
+        'culture_day.export' => 'Exported Culture Day',
     ];
     return $map[$row['action'] ?? ''] ?? ($row['action'] ?? 'Activity');
 }
@@ -142,6 +152,7 @@ function audit_sentence(array $row): string
         'announcement.save' => 'saved announcement',
         'announcement.delete' => 'deleted announcement',
         'gallery.upload' => 'uploaded gallery image',
+        'gallery.update' => 'updated gallery image',
         'gallery.delete' => 'deleted gallery image',
         'gallery.toggle' => 'changed gallery visibility for',
         'gallery.download' => 'changed gallery download access for',
@@ -188,6 +199,15 @@ function audit_sentence(array $row): string
         'role.update' => 'updated role',
         'role.delete' => 'deleted role',
         'permissions.update' => 'updated permissions for',
+        'culture_day.event_save' => 'saved Culture Day event',
+        'culture_day.publish' => 'published Culture Day',
+        'culture_day.unpublish' => 'unpublished Culture Day',
+        'culture_day.archive' => 'archived Culture Day',
+        'culture_day.culture_save' => 'saved culture',
+        'culture_day.group_save' => 'saved Culture Day group',
+        'culture_day.group_delete' => 'deleted Culture Day group',
+        'culture_day.members_save' => 'updated members for',
+        'culture_day.export' => 'exported Culture Day',
     ];
     $verb = $verbs[$row['action'] ?? ''] ?? strtolower(audit_label($row));
     if ($detail === '' || ($row['action'] ?? '') === 'password.update') {

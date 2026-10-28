@@ -46,7 +46,7 @@ function permission_catalog(): array
         'Gallery' => [
             'gallery.view' => 'View gallery',
             'gallery.upload' => 'Upload photos',
-            'gallery.edit' => 'Change photo visibility',
+            'gallery.edit' => 'Edit photos and visibility',
             'gallery.delete' => 'Delete photos',
         ],
         'Class content' => [
@@ -64,6 +64,9 @@ function permission_catalog(): array
             'committee.manage' => 'Manage committee',
             'graduation.view' => 'View graduation',
             'graduation.manage' => 'Manage graduation',
+            'culture_day.view' => 'View Culture Day',
+            'culture_day.manage' => 'Manage Culture Day events and groups',
+            'culture_day.publish' => 'Publish or unpublish Culture Day',
         ],
         'Interactions' => [
             'polls.view' => 'View polls',

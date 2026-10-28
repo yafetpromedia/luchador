@@ -100,6 +100,7 @@ return [
     'student.polls' => 'ድምጽ አሰጣጥ',
     'student.decisions' => 'ውሳኔዎች',
     'student.questions' => 'ጥያቄዎች',
+    'student.culture_day' => 'የባህል ቀን',
     'student.gallery' => 'ፎቶዎች',
     'student.achievements' => 'ስኬቶች',
     'student.graduation' => 'ምረቃ',

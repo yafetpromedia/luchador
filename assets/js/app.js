@@ -176,6 +176,17 @@
         }
     });
 
+    document.querySelector('[data-culture-expand-all]')?.addEventListener('click', () => {
+        document.querySelectorAll('[data-culture-graph] details').forEach((el) => {
+            el.open = true;
+        });
+    });
+    document.querySelector('[data-culture-collapse-all]')?.addEventListener('click', () => {
+        document.querySelectorAll('[data-culture-graph] details').forEach((el) => {
+            el.open = false;
+        });
+    });
+
     const countdownRoots = document.querySelectorAll('[data-countdown]');
     countdownRoots.forEach((root) => {
         const target = new Date(root.getAttribute('data-countdown') || '');

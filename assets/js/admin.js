@@ -189,6 +189,7 @@
         setFormValue('father_phone', data.father_phone || '');
         setFormValue('grade', data.grade || studentForm.getAttribute('data-default-grade') || '');
         setFormValue('section', data.section || '');
+        setFormValue('gender', data.gender || '');
         setFormValue('size', data.size || '');
         setFormValue('quantity', String(data.quantity || 1));
         setFormValue('status', data.status || 'pending');
@@ -522,6 +523,17 @@
 
     document.querySelectorAll('select[data-autosubmit]').forEach((el) => {
         el.addEventListener('change', () => el.form?.requestSubmit());
+    });
+
+    document.querySelector('[data-culture-expand-all]')?.addEventListener('click', () => {
+        document.querySelectorAll('[data-culture-graph] details').forEach((el) => {
+            el.open = true;
+        });
+    });
+    document.querySelector('[data-culture-collapse-all]')?.addEventListener('click', () => {
+        document.querySelectorAll('[data-culture-graph] details').forEach((el) => {
+            el.open = false;
+        });
     });
 
     const reportForm = document.querySelector('[data-report-form]');

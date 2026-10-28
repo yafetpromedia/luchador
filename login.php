@@ -55,7 +55,7 @@ if (is_post()) {
     <title><?= e(t('auth.title')) ?> · <?= e(class_name()) ?></title>
     <link rel="icon" href="<?= e(url('assets/images/favicon.svg')) ?>" type="image/svg+xml">
     <?php site_font_links(); ?>
-    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=62">
+    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=63">
 </head>
 <body class="auth-body">
     <?php render_language_switcher('auth-lang'); ?>
@@ -107,6 +107,6 @@ if (is_post()) {
             <p><a class="text-link" href="<?= e(url('index.php')) ?>"><?= e(t('auth.back')) ?> <?= icon('arrow-right', 16) ?></a></p>
         </section>
     </main>
-    <script src="<?= e(url('assets/js/app.js')) ?>?v=13"></script>
+    <script src="<?= e(url('assets/js/app.js')) ?>?v=14"></script>
 </body>
 </html>

@@ -562,6 +562,17 @@ admin_page_head('Manage the Grade 12 class roster.', $studentActions);
                         <?php endforeach; ?>
                     </select>
                 </div>
+                <?php if (column_exists(db(), 'uniforms', 'gender')): ?>
+                <div class="form-group">
+                    <label for="gender">Gender</label>
+                    <select id="gender" name="gender">
+                        <?php foreach (student_gender_options() as $gKey => $gLabel): ?>
+                            <option value="<?= e($gKey) ?>"><?= e($gLabel) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <p class="muted">Recorded value only. Never inferred from a name.</p>
+                </div>
+                <?php endif; ?>
             </div>
 
             <p class="section-label">Family</p>

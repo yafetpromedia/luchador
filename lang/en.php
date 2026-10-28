@@ -100,6 +100,7 @@ return [
     'student.polls' => 'Polls',
     'student.decisions' => 'Decisions',
     'student.questions' => 'Questions',
+    'student.culture_day' => 'Culture Day',
     'student.gallery' => 'Gallery',
     'student.achievements' => 'Achievements',
     'student.graduation' => 'Graduation',

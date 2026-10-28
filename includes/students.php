@@ -11,6 +11,10 @@ function student_payload(array $src): array
     $allowedStatus = ['pending', 'ordered', 'ready', 'collected'];
     $allowedPayment = ['unpaid', 'partial', 'paid'];
     $section = normalize_class_section((string) ($src['section'] ?? ''));
+    $gender = strtolower(trim((string) ($src['gender'] ?? '')));
+    if (!in_array($gender, ['male', 'female'], true)) {
+        $gender = '';
+    }
 
     return [
         'student_name' => trim((string) ($src['student_name'] ?? '')),
@@ -23,6 +27,7 @@ function student_payload(array $src): array
         'student_code' => trim((string) ($src['student_code'] ?? '')) ?: null,
         'grade' => trim((string) ($src['grade'] ?? class_grade())) ?: class_grade(),
         'section' => $section !== '' ? $section : null,
+        'gender' => $gender !== '' ? $gender : null,
         'quantity' => max(1, (int) ($src['quantity'] ?? 1)),
         'status' => in_array($status, $allowedStatus, true) ? $status : 'pending',
         'payment_status' => in_array($payment, $allowedPayment, true) ? $payment : 'unpaid',
@@ -67,6 +72,7 @@ function save_student(array $src, ?int $id = null, array $files = []): array
         $photo = null;
     }
 
+    $hasGender = column_exists(db(), 'uniforms', 'gender');
     $params = [
         $data['student_name'],
         $data['phone_number'],
@@ -79,18 +85,30 @@ function save_student(array $src, ?int $id = null, array $files = []): array
         $data['student_code'],
         $data['grade'],
         $data['section'],
-        $data['quantity'],
-        $data['status'],
-        $data['payment_status'],
-        $data['notes'],
     ];
+    if ($hasGender) {
+        $params[] = $data['gender'];
+    }
+    $params[] = $data['quantity'];
+    $params[] = $data['status'];
+    $params[] = $data['payment_status'];
+    $params[] = $data['notes'];
 
     if ($id) {
         $params[] = $id;
-        db()->prepare('UPDATE uniforms SET student_name = ?, phone_number = ?, mother_name = ?, mother_phone = ?, father_name = ?, father_phone = ?, photo = ?, size = ?, student_code = ?, grade = ?, section = ?, quantity = ?, status = ?, payment_status = ?, notes = ? WHERE id = ?')->execute($params);
+        $sql = 'UPDATE uniforms SET student_name = ?, phone_number = ?, mother_name = ?, mother_phone = ?, father_name = ?, father_phone = ?, photo = ?, size = ?, student_code = ?, grade = ?, section = ?';
+        if ($hasGender) {
+            $sql .= ', gender = ?';
+        }
+        $sql .= ', quantity = ?, status = ?, payment_status = ?, notes = ? WHERE id = ?';
+        db()->prepare($sql)->execute($params);
         $saved = student_by_id($id);
     } else {
-        db()->prepare('INSERT INTO uniforms (student_name, phone_number, mother_name, mother_phone, father_name, father_phone, photo, size, student_code, grade, section, quantity, status, payment_status, notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')->execute($params);
+        if ($hasGender) {
+            db()->prepare('INSERT INTO uniforms (student_name, phone_number, mother_name, mother_phone, father_name, father_phone, photo, size, student_code, grade, section, gender, quantity, status, payment_status, notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')->execute($params);
+        } else {
+            db()->prepare('INSERT INTO uniforms (student_name, phone_number, mother_name, mother_phone, father_name, father_phone, photo, size, student_code, grade, section, quantity, status, payment_status, notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')->execute($params);
+        }
         $saved = student_by_id((int) db()->lastInsertId());
     }
 
@@ -654,6 +672,9 @@ function student_view_payload(array $row): array
         'father_phone' => trim((string) ($row['father_phone'] ?? '')),
         'grade' => trim((string) ($row['grade'] ?? '')) ?: class_grade(),
         'section' => trim((string) ($row['section'] ?? '')),
+        'gender' => in_array(strtolower(trim((string) ($row['gender'] ?? ''))), ['male', 'female'], true)
+            ? strtolower(trim((string) $row['gender']))
+            : '',
         'size' => trim((string) ($row['size'] ?? '')),
         'quantity' => (int) ($row['quantity'] ?? 1),
         'status' => (string) ($row['status'] ?? 'pending'),
