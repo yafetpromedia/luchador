@@ -40,7 +40,7 @@ if (is_post() && posted('action') === 'vote') {
         }
         submit_poll_vote($poll, $student, (int) ($user['id'] ?? 0), $ids);
         log_audit('poll.vote', 'poll', (int) $poll['id'], $poll['title'] ?? '');
-        flash_set('success', 'Your vote has been recorded.');
+        flash_set('vote_success', '1');
     } catch (InvalidArgumentException $e) {
         flash_set('error', $e->getMessage());
     } catch (Throwable $e) {
@@ -50,10 +50,23 @@ if (is_post() && posted('action') === 'vote') {
     redirect('student/poll.php?id=' . (int) $poll['id']);
 }
 
-student_header(poll_kind_label($poll), poll_is_decision($poll) ? 'decisions' : 'polls', lead: (string) ($poll['title'] ?? 'Class poll'));
+$justVoted = (string) flash_get('vote_success', '') !== '';
+$pickedLabels = [];
+if ($vote) {
+    $pickedIds = $vote['option_ids'] ?? [];
+    foreach ($options as $option) {
+        if (in_array((int) $option['id'], $pickedIds, true)) {
+            $pickedLabels[] = (string) $option['label'];
+        }
+    }
+}
+$pickedSummary = $pickedLabels === [] ? '' : implode(' · ', $pickedLabels);
+$isDecision = poll_is_decision($poll);
+
+student_header(poll_kind_label($poll), $isDecision ? 'decisions' : 'polls', lead: (string) ($poll['title'] ?? 'Class poll'));
 ?>
 
-<article class="panel poll-card<?= poll_is_decision($poll) ? ' is-decision' : '' ?>">
+<article class="panel poll-card<?= $isDecision ? ' is-decision' : '' ?>">
     <p class="eyebrow"><?= e(poll_kind_label($poll)) ?></p>
     <h2><?= e($poll['title']) ?></h2>
     <?php if (!empty($poll['description'])): ?>
@@ -67,13 +80,24 @@ student_header(poll_kind_label($poll), poll_is_decision($poll) ? 'decisions' : '
         <?= interaction_closes_in($poll['ends_at'] ?? null) !== '' ? ' · ' . e(interaction_closes_in($poll['ends_at'] ?? null)) : '' ?>
         <?= !empty($poll['anonymous']) ? ' · Anonymous voting' : '' ?>
         <?= ($poll['choice_type'] ?? '') === 'multiple' ? ' · Select all that apply' : '' ?>
-        <?= poll_is_decision($poll) ? ' · This vote counts for the class' : '' ?>
+        <?= $isDecision ? ' · This vote counts for the class' : '' ?>
     </p>
 
     <?php if ($scheduled): ?>
         <p class="poll-recorded">Voting is not open yet<?= !empty($poll['starts_at']) ? ' — starts ' . e(format_when((string) $poll['starts_at'])) : '' ?>.</p>
     <?php elseif ($vote): ?>
-        <p class="poll-recorded">Your vote has been recorded.</p>
+        <div class="vote-done<?= $justVoted ? ' is-fresh' : '' ?>">
+            <span class="vote-done-tick" aria-hidden="true">
+                <svg viewBox="0 0 52 52" width="28" height="28">
+                    <circle class="vote-done-ring" cx="26" cy="26" r="24" fill="none"/>
+                    <path class="vote-done-check" fill="none" d="M14.5 27.2 22.2 34.5 37.5 17.8"/>
+                </svg>
+            </span>
+            <div class="vote-done-copy">
+                <strong><?= $justVoted ? 'Vote recorded' : 'You already voted' ?></strong>
+                <p><?= $pickedSummary !== '' ? e($pickedSummary) : ($isDecision ? 'Your class decision vote is in.' : 'Your vote is saved.') ?></p>
+            </div>
+        </div>
     <?php endif; ?>
 
     <?php if ($canChange): ?>
@@ -82,11 +106,12 @@ student_header(poll_kind_label($poll), poll_is_decision($poll) ? 'decisions' : '
             <input type="hidden" name="action" value="vote">
             <?php $multi = ($poll['choice_type'] ?? 'single') === 'multiple'; ?>
             <ul class="poll-options">
-                <?php foreach ($options as $option): ?>
+                <?php foreach ($options as $i => $option): ?>
                     <li>
-                        <label class="check">
+                        <label class="vote-choice">
                             <input type="<?= $multi ? 'checkbox' : 'radio' ?>" name="<?= $multi ? 'option_ids[]' : 'option_id' ?>" value="<?= (int) $option['id'] ?>" <?= in_array((int) $option['id'], $vote['option_ids'] ?? [], true) ? 'checked' : '' ?> <?= $multi ? '' : 'required' ?>>
-                            <?= e($option['label']) ?>
+                            <span class="vote-choice-mark" aria-hidden="true"><?= e(chr(65 + min((int) $i, 25))) ?></span>
+                            <span class="vote-choice-label"><?= e((string) $option['label']) ?></span>
                         </label>
                     </li>
                 <?php endforeach; ?>
@@ -121,6 +146,26 @@ student_header(poll_kind_label($poll), poll_is_decision($poll) ? 'decisions' : '
     <?php endif; ?>
 </article>
 
-<p><a class="text-link" href="<?= e(url(poll_is_decision($poll) ? 'student/decisions.php' : 'student/polls.php')) ?>"><?= poll_is_decision($poll) ? 'All decisions' : 'All polls' ?></a></p>
+<p><a class="text-link" href="<?= e(url($isDecision ? 'student/decisions.php' : 'student/polls.php')) ?>"><?= $isDecision ? 'All decisions' : 'All polls' ?></a></p>
 
-<?php student_footer(poll_is_decision($poll) ? 'decisions' : 'polls'); ?>
+<?php if ($justVoted): ?>
+    <div class="vote-success" id="vote-success" hidden data-vote-success>
+        <div class="vote-success-backdrop" data-vote-success-dismiss tabindex="-1" aria-hidden="true"></div>
+        <div class="vote-success-card" role="status" aria-live="polite" aria-labelledby="vote-success-title">
+            <span class="vote-success-tick" aria-hidden="true">
+                <svg viewBox="0 0 52 52" width="64" height="64">
+                    <circle class="vote-done-ring" cx="26" cy="26" r="24" fill="none"/>
+                    <path class="vote-done-check" fill="none" d="M14.5 27.2 22.2 34.5 37.5 17.8"/>
+                </svg>
+            </span>
+            <h2 id="vote-success-title">You're counted</h2>
+            <p><?= $isDecision ? 'Your class decision vote is recorded.' : 'Your vote is recorded.' ?></p>
+            <?php if ($pickedSummary !== ''): ?>
+                <p class="vote-success-pick"><?= e($pickedSummary) ?></p>
+            <?php endif; ?>
+            <button type="button" class="btn" data-vote-success-dismiss>Done</button>
+        </div>
+    </div>
+<?php endif; ?>
+
+<?php student_footer($isDecision ? 'decisions' : 'polls'); ?>

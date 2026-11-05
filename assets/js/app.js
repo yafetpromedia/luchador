@@ -779,6 +779,61 @@
         });
     });
 
+    document.querySelectorAll('.vote-choice').forEach((choice) => {
+        const input = choice.querySelector('input');
+        if (!input) return;
+        const sync = () => {
+            const scope = choice.closest('form') || document;
+            if (input.type === 'radio') {
+                scope.querySelectorAll('.vote-choice').forEach((peer) => {
+                    const peerInput = peer.querySelector('input');
+                    peer.classList.toggle('is-selected', !!(peerInput && peerInput.checked));
+                });
+                return;
+            }
+            choice.classList.toggle('is-selected', input.checked);
+        };
+        input.addEventListener('change', sync);
+        sync();
+    });
+
+    const voteSuccess = document.querySelector('[data-vote-success]');
+    if (voteSuccess) {
+        let successFocus = null;
+        const openVoteSuccess = () => {
+            successFocus = document.activeElement;
+            voteSuccess.hidden = false;
+            requestAnimationFrame(() => {
+                voteSuccess.classList.add('is-open');
+                document.body.classList.add('vote-prompt-open');
+                lockScroll();
+                voteSuccess.querySelector('[data-vote-success-dismiss]')?.focus();
+            });
+        };
+        const closeVoteSuccess = () => {
+            if (voteSuccess.hasAttribute('hidden')) return;
+            voteSuccess.classList.remove('is-open');
+            document.body.classList.remove('vote-prompt-open');
+            unlockScroll();
+            window.setTimeout(() => {
+                voteSuccess.hidden = true;
+                if (successFocus && typeof successFocus.focus === 'function') {
+                    successFocus.focus();
+                }
+            }, 280);
+        };
+        voteSuccess.querySelectorAll('[data-vote-success-dismiss]').forEach((el) => {
+            el.addEventListener('click', closeVoteSuccess);
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && voteSuccess.classList.contains('is-open')) {
+                closeVoteSuccess();
+            }
+        });
+        window.setTimeout(openVoteSuccess, 180);
+        window.setTimeout(closeVoteSuccess, 4200);
+    }
+
     const votePrompt = document.querySelector('[data-vote-prompt]');
     if (votePrompt) {
         const pollId = votePrompt.getAttribute('data-poll-id') || '0';
