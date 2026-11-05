@@ -16,12 +16,14 @@ if (!$question || !question_visible_to_students($question)) {
 
 $student = current_student();
 $user = current_user();
-$mine = $student ? question_response_for_student((int) $question['id'], (int) $student['id']) : null;
-$open = (string) ($question['status'] ?? '') === 'open' && $student && can('questions.respond');
-$canChange = $open && ($mine ? !empty($question['allow_change']) : true);
 $kind = (string) ($question['kind'] ?? 'open');
+$committeeAsk = question_is_committee_ask($question);
+$acceptsAnswers = question_accepts_responses($question);
+$mine = ($student && $acceptsAnswers) ? question_response_for_student((int) $question['id'], (int) $student['id']) : null;
+$open = $acceptsAnswers && (string) ($question['status'] ?? '') === 'open' && $student && can('questions.respond');
+$canChange = $open && ($mine ? !empty($question['allow_change']) : true);
 $options = $kind === 'choices' ? question_options((int) $question['id']) : [];
-$responses = question_responses((int) $question['id']);
+$responses = $acceptsAnswers ? question_responses((int) $question['id']) : [];
 $choiceResults = $kind === 'choices' ? question_choice_results((int) $question['id']) : null;
 $showChoices = $kind === 'choices' && ($mine || (string) ($question['status'] ?? '') === 'closed');
 
@@ -33,6 +35,9 @@ if (is_post() && posted('action') === 'respond') {
     try {
         if (!$student) {
             throw new InvalidArgumentException('Your class record is not linked.');
+        }
+        if (!$acceptsAnswers) {
+            throw new InvalidArgumentException('This was sent to the committee. Students do not answer it.');
         }
         submit_question_response($question, $student, (int) ($user['id'] ?? 0), $_POST);
         log_audit('question.respond', 'question', (int) $question['id'], $question['title'] ?? '');
@@ -55,13 +60,22 @@ student_header('Question', 'questions', lead: (string) ($question['title'] ?? 'C
     <?php if (!empty($question['body'])): ?>
         <p><?= nl2br(e((string) $question['body'])) ?></p>
     <?php endif; ?>
-    <p class="muted"><?= count($responses) ?> response<?= count($responses) === 1 ? '' : 's' ?><?= (string) ($question['status'] ?? '') === 'closed' ? ' · Closed' : '' ?></p>
+    <p class="muted">
+        <?php if ($committeeAsk): ?>
+            <?= !empty($question['official_answer']) ? 'Committee replied' : 'Waiting for the committee' ?>
+        <?php else: ?>
+            <?= count($responses) ?> response<?= count($responses) === 1 ? '' : 's' ?>
+        <?php endif; ?>
+        <?= (string) ($question['status'] ?? '') === 'closed' ? ' · Closed' : '' ?>
+    </p>
 
     <?php if (!empty($question['official_answer'])): ?>
         <div class="official-answer">
             <p class="eyebrow">Committee</p>
             <p><?= nl2br(e((string) $question['official_answer'])) ?></p>
         </div>
+    <?php elseif ($committeeAsk): ?>
+        <p class="muted">The committee has not posted a reply yet. Students do not answer this — only the committee does.</p>
     <?php endif; ?>
 
     <?php if ($canChange): ?>

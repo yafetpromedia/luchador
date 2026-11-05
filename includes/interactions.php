@@ -153,6 +153,73 @@ function poll_results(int $pollId): array
     return ['total' => $total, 'options' => $out];
 }
 
+/**
+ * Committee view: who voted, which option(s), and class turnout.
+ * Anonymous polls still store roster ids — names stay available here.
+ */
+function poll_voter_breakdown(int $pollId): array
+{
+    $options = poll_options($pollId);
+    $grouped = [];
+    foreach ($options as $option) {
+        $id = (int) $option['id'];
+        $grouped[$id] = [
+            'id' => $id,
+            'label' => (string) $option['label'],
+            'votes' => 0,
+            'voters' => [],
+        ];
+    }
+
+    $voters = [];
+    if (table_exists(db(), 'poll_votes') && table_exists(db(), 'uniforms')) {
+        $stmt = db()->prepare(
+            'SELECT v.id AS vote_id, v.student_id, v.created_at, v.updated_at,
+                    u.student_name, u.student_code, c.option_id
+             FROM poll_votes v
+             INNER JOIN uniforms u ON u.id = v.student_id
+             INNER JOIN poll_vote_choices c ON c.vote_id = v.id
+             WHERE v.poll_id = ?
+             ORDER BY u.student_name ASC, c.option_id ASC'
+        );
+        $stmt->execute([$pollId]);
+        foreach ($stmt->fetchAll() ?: [] as $row) {
+            $voteId = (int) $row['vote_id'];
+            $optionId = (int) $row['option_id'];
+            $student = [
+                'student_id' => (int) $row['student_id'],
+                'name' => (string) ($row['student_name'] ?? ''),
+                'code' => (string) ($row['student_code'] ?? ''),
+                'at' => (string) (($row['updated_at'] ?? '') !== '' && ($row['updated_at'] ?? null) !== null
+                    ? $row['updated_at']
+                    : ($row['created_at'] ?? '')),
+            ];
+            if (!isset($voters[$voteId])) {
+                $voters[$voteId] = $student + ['option_ids' => [], 'labels' => []];
+            }
+            $voters[$voteId]['option_ids'][] = $optionId;
+            if (isset($grouped[$optionId])) {
+                $grouped[$optionId]['votes']++;
+                $grouped[$optionId]['voters'][] = $student;
+                $voters[$voteId]['labels'][] = $grouped[$optionId]['label'];
+            }
+        }
+    }
+
+    $classTotal = table_exists(db(), 'uniforms')
+        ? (int) db()->query('SELECT COUNT(*) FROM uniforms')->fetchColumn()
+        : 0;
+    $votedCount = count($voters);
+
+    return [
+        'total' => $votedCount,
+        'class_total' => $classTotal,
+        'pending' => max(0, $classTotal - $votedCount),
+        'options' => array_values($grouped),
+        'voters' => array_values($voters),
+    ];
+}
+
 function poll_can_show_results(array $poll, bool $hasVoted): bool
 {
     if (can('polls.results')) {
@@ -512,6 +579,18 @@ function question_kinds(): array
     ];
 }
 
+/** Student asks for the committee — not a class prompt to answer. */
+function question_is_committee_ask(array $question): bool
+{
+    return in_array((string) ($question['kind'] ?? ''), ['qa', 'suggestion'], true);
+}
+
+/** Only open / choice prompts collect student answers. */
+function question_accepts_responses(array $question): bool
+{
+    return in_array((string) ($question['kind'] ?? ''), ['open', 'choices'], true);
+}
+
 function question_by_id(int $id): ?array
 {
     if ($id < 1 || !table_exists(db(), 'questions')) {
@@ -654,12 +733,12 @@ function home_question(): ?array
 {
     $rows = visible_questions();
     foreach ($rows as $row) {
-        if ((string) $row['status'] === 'open' && !empty($row['featured'])) {
+        if ((string) $row['status'] === 'open' && !empty($row['featured']) && question_accepts_responses($row)) {
             return $row;
         }
     }
     foreach ($rows as $row) {
-        if ((string) $row['status'] === 'open' && in_array((string) $row['kind'], ['open', 'choices'], true)) {
+        if ((string) $row['status'] === 'open' && question_accepts_responses($row)) {
             return $row;
         }
     }
@@ -783,6 +862,9 @@ function submit_question_response(array $question, array $student, int $userId, 
 {
     if ((string) ($question['status'] ?? '') !== 'open') {
         throw new InvalidArgumentException('This question is closed.');
+    }
+    if (!question_accepts_responses($question)) {
+        throw new InvalidArgumentException('This was sent to the committee. Students do not answer it — wait for the committee reply.');
     }
     $studentId = (int) ($student['id'] ?? 0);
     if ($studentId < 1 || $userId < 1) {

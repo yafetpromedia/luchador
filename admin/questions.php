@@ -221,12 +221,13 @@ admin_page_head('Class questions, suggestions, and anonymous asks. Internal stud
             <div class="form-group full">
                 <label for="q_official">Committee answer</label>
                 <textarea id="q_official" name="official_answer" rows="4" placeholder="Optional. Shown to the class after you save."><?= e($edit['official_answer'] ?? '') ?></textarea>
+                <p class="muted">For Ask the committee / Suggestion: write the reply here. Opening publishes the Q&amp;A — students do not submit answers to it.</p>
             </div>
             <div class="form-group full q-settings">
-                <label class="check"><input type="checkbox" name="allow_anonymous" value="1" <?= !empty($edit['allow_anonymous']) ? 'checked' : '' ?>><span>Allow anonymous answers<small>Student id stays on file</small></span></label>
-                <label class="check"><input type="checkbox" name="allow_change" value="1" <?= !$edit || !empty($edit['allow_change']) ? 'checked' : '' ?>><span>Students can change their answer</span></label>
-                <label class="check"><input type="checkbox" name="moderate" value="1" <?= !empty($edit['moderate']) ? 'checked' : '' ?>><span>Hold answers for approval</span></label>
-                <label class="check"><input type="checkbox" name="featured" value="1" <?= !empty($edit['featured']) ? 'checked' : '' ?>><span>Question of the week on student home</span></label>
+                <label class="check"><input type="checkbox" name="allow_anonymous" value="1" <?= !empty($edit['allow_anonymous']) ? 'checked' : '' ?>><span>Allow anonymous answers<small>Student id stays on file · only for class prompts</small></span></label>
+                <label class="check"><input type="checkbox" name="allow_change" value="1" <?= !$edit || !empty($edit['allow_change']) ? 'checked' : '' ?>><span>Students can change their answer<small>Only for open / choice prompts</small></span></label>
+                <label class="check"><input type="checkbox" name="moderate" value="1" <?= !empty($edit['moderate']) ? 'checked' : '' ?>><span>Hold answers for approval<small>Only for class prompts</small></span></label>
+                <label class="check"><input type="checkbox" name="featured" value="1" <?= !empty($edit['featured']) ? 'checked' : '' ?>><span>Question of the week on student home<small>Class prompts only</small></span></label>
             </div>
         </div>
         <div class="form-actions" style="margin-top:1rem">

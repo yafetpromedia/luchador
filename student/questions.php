@@ -77,14 +77,21 @@ student_header('Questions', 'questions', lead: 'Answer class prompts, or ask the
     <div class="stu-stack">
         <?php foreach ($items as $item): ?>
             <?php
-            $countStmt = db()->prepare("SELECT COUNT(*) FROM question_responses WHERE question_id = ? AND status = 'visible'");
-            $countStmt->execute([(int) $item['id']]);
-            $n = (int) $countStmt->fetchColumn();
+            $ask = question_is_committee_ask($item);
+            $n = 0;
+            if (!$ask) {
+                $countStmt = db()->prepare("SELECT COUNT(*) FROM question_responses WHERE question_id = ? AND status = 'visible'");
+                $countStmt->execute([(int) $item['id']]);
+                $n = (int) $countStmt->fetchColumn();
+            }
+            $meta = $ask
+                ? (!empty($item['official_answer']) ? 'Committee replied' : 'Waiting for the committee')
+                : ((int) $n . ' response' . ($n === 1 ? '' : 's'));
             ?>
             <a class="panel interact-link" href="<?= e(url('student/question.php?id=' . (int) $item['id'])) ?>">
                 <p class="eyebrow"><?= e(question_kinds()[$item['kind'] ?? 'open'] ?? 'Question') ?></p>
                 <h2><?= e($item['title']) ?></h2>
-                <p class="muted"><?= (int) $n ?> response<?= $n === 1 ? '' : 's' ?> · <?= e(status_label((string) ($item['status'] ?? 'open'))) ?></p>
+                <p class="muted"><?= e($meta) ?> · <?= e(status_label((string) ($item['status'] ?? 'open'))) ?></p>
             </a>
         <?php endforeach; ?>
     </div>

@@ -144,7 +144,10 @@ student_header('Home', 'dashboard', true);
 <?php if ($homeQuestion): ?>
     <?php
     $qKind = (string) ($homeQuestion['kind'] ?? 'open');
-    $qOpen = (string) ($homeQuestion['status'] ?? '') === 'open' && $student && can('questions.respond');
+    $qOpen = question_accepts_responses($homeQuestion)
+        && (string) ($homeQuestion['status'] ?? '') === 'open'
+        && $student
+        && can('questions.respond');
     $qCan = $qOpen && ($questionMine ? !empty($homeQuestion['allow_change']) : true);
     ?>
     <section class="stu-block interact-home">

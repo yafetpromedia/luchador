@@ -84,6 +84,7 @@ $showForm = ($edit && can('polls.edit')) || (!$edit && can('polls.create'));
 $options = $edit ? poll_options((int) $edit['id']) : [];
 $locked = $edit && ($voteCount[(int) $edit['id']] ?? 0) > 0;
 $results = $edit && can('polls.results') ? poll_results((int) $edit['id']) : null;
+$breakdown = $edit && can('polls.results') ? poll_voter_breakdown((int) $edit['id']) : null;
 
 admin_header($edit ? (poll_is_decision($edit) ? 'Edit decision' : 'Edit poll') : 'Polls', 'polls');
 admin_page_head('Class polls and official class decisions. Students vote once; the database rejects duplicates.');
@@ -95,7 +96,93 @@ admin_page_head('Class polls and official class decisions. Students vote once; t
     <a class="chip <?= $filter === 'decisions' ? 'is-active' : '' ?>" href="?filter=decisions">Decisions</a>
 </p>
 
+<?php if ($edit && $breakdown && can('polls.results')): ?>
+<section class="panel poll-admin-results" id="poll-results">
+    <div class="poll-admin-results-head">
+        <div>
+            <h2>Results &amp; voters</h2>
+            <p class="muted">
+                <?= (int) $breakdown['total'] ?> of <?= (int) $breakdown['class_total'] ?> student<?= (int) $breakdown['class_total'] === 1 ? '' : 's' ?> voted
+                <?php if ((int) $breakdown['class_total'] > 0): ?>
+                    (<?= (int) round(((int) $breakdown['total'] / (int) $breakdown['class_total']) * 100) ?>%)
+                <?php endif; ?>
+                · <?= (int) $breakdown['pending'] ?> still to vote
+            </p>
+            <?php if (!empty($edit['anonymous'])): ?>
+                <p class="muted">Marked anonymous for students — committee still sees names here.</p>
+            <?php endif; ?>
+        </div>
+        <?php if ($showForm): ?>
+            <a class="btn btn-ghost btn-sm" href="#poll-edit">Edit settings</a>
+        <?php endif; ?>
+    </div>
+
+    <?php if ($results): ?>
+        <ul class="poll-results poll-admin-bars">
+            <?php foreach ($results['options'] as $option): ?>
+                <li>
+                    <span><?= e($option['label']) ?></span>
+                    <span class="poll-bar"><i style="width: <?= (int) $option['percent'] ?>%"></i></span>
+                    <b><?= (int) $option['votes'] ?> · <?= (int) $option['percent'] ?>%</b>
+                </li>
+            <?php endforeach; ?>
+        </ul>
+    <?php endif; ?>
+
+    <div class="poll-voter-groups">
+        <?php foreach ($breakdown['options'] as $option): ?>
+            <div class="poll-voter-group">
+                <div class="poll-voter-group-head">
+                    <strong><?= e($option['label']) ?></strong>
+                    <span><?= (int) $option['votes'] ?> vote<?= (int) $option['votes'] === 1 ? '' : 's' ?></span>
+                </div>
+                <?php if ($option['voters'] === []): ?>
+                    <p class="muted">No votes for this choice yet.</p>
+                <?php else: ?>
+                    <ul class="poll-voter-list">
+                        <?php foreach ($option['voters'] as $voter): ?>
+                            <li>
+                                <span class="poll-voter-name"><?= e($voter['name'] !== '' ? $voter['name'] : 'Student') ?></span>
+                                <?php if ($voter['code'] !== ''): ?>
+                                    <span class="poll-voter-code"><?= e($voter['code']) ?></span>
+                                <?php endif; ?>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+            </div>
+        <?php endforeach; ?>
+    </div>
+
+    <?php if ($breakdown['voters'] !== []): ?>
+        <div class="table-wrap poll-voter-table-wrap">
+            <table class="poll-voter-table">
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Student ID</th>
+                        <th>Choice</th>
+                        <th>Voted</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($breakdown['voters'] as $voter): ?>
+                        <tr>
+                            <td><?= e($voter['name'] !== '' ? $voter['name'] : 'Student') ?></td>
+                            <td><?= e($voter['code'] !== '' ? $voter['code'] : '—') ?></td>
+                            <td><?= e(implode(', ', $voter['labels'])) ?></td>
+                            <td><?= $voter['at'] !== '' ? e(format_when($voter['at'])) : '—' ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php endif; ?>
+</section>
+<?php endif; ?>
+
 <?php if ($showForm): ?>
+<div class="panel" id="poll-edit">
 <div class="panel">
     <h2><?= $edit ? (poll_is_decision($edit) ? 'Update class decision' : 'Update poll') : 'New vote' ?></h2>
     <form method="post" data-loading>
@@ -164,22 +251,6 @@ admin_page_head('Class polls and official class decisions. Students vote once; t
 </div>
 <?php endif; ?>
 
-<?php if ($edit && $results && can('polls.results')): ?>
-<section class="panel">
-    <h2>Results</h2>
-    <p class="muted"><?= (int) $results['total'] ?> vote<?= (int) $results['total'] === 1 ? '' : 's' ?> recorded.</p>
-    <ul class="poll-results">
-        <?php foreach ($results['options'] as $option): ?>
-            <li>
-                <span><?= e($option['label']) ?></span>
-                <span class="poll-bar"><i style="width: <?= (int) $option['percent'] ?>%"></i></span>
-                <b><?= (int) $option['percent'] ?>%</b>
-            </li>
-        <?php endforeach; ?>
-    </ul>
-</section>
-<?php endif; ?>
-
 <?php if (!$rows): ?>
     <?php admin_empty($filter === 'decisions' ? 'No class decisions yet.' : 'No polls yet.', 'Create a vote above. Leave it as draft until the class should vote.'); ?>
 <?php else: ?>
@@ -199,7 +270,12 @@ admin_page_head('Class polls and official class decisions. Students vote once; t
             <td><?= (int) ($voteCount[(int) $row['id']] ?? 0) ?></td>
             <td><?= !empty($row['ends_at']) ? e(format_when($row['ends_at'])) : '—' ?></td>
             <td class="row-actions">
-                <a class="btn btn-sm btn-ghost" href="?edit=<?= (int) $row['id'] ?>">Edit</a>
+                <?php if (can('polls.results')): ?>
+                    <a class="btn btn-sm" href="?edit=<?= (int) $row['id'] ?>#poll-results">Results</a>
+                <?php endif; ?>
+                <?php if (can('polls.edit')): ?>
+                    <a class="btn btn-sm btn-ghost" href="?edit=<?= (int) $row['id'] ?>#poll-edit">Edit</a>
+                <?php endif; ?>
                 <?php if (can('polls.close')): ?>
                     <?php $eff = poll_effective_status($row); ?>
                     <?php if ($eff === 'scheduled' || (string) ($row['status'] ?? '') === 'draft' || $eff === 'closed'): ?>
