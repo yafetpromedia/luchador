@@ -34,6 +34,9 @@ if (is_post()) {
                 }
             }
             log_audit('user.login', 'user', (int) $user['id'], $detail);
+            if (($user['role'] ?? '') === 'student') {
+                $_SESSION['show_vote_prompt'] = true;
+            }
             redirect(post_login_path($user, $requested));
         } catch (RuntimeException $e) {
             if ($e->getMessage() === 'disabled') {

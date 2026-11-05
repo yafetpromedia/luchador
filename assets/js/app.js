@@ -778,4 +778,69 @@
             }
         });
     });
+
+    const votePrompt = document.querySelector('[data-vote-prompt]');
+    if (votePrompt) {
+        const pollId = votePrompt.getAttribute('data-poll-id') || '0';
+        const dismissKey = 'luchador_vote_dismiss_' + pollId;
+        let promptFocus = null;
+
+        const wasDismissed = () => {
+            try {
+                return sessionStorage.getItem(dismissKey) === '1';
+            } catch (err) {
+                return false;
+            }
+        };
+
+        const markDismissed = () => {
+            try {
+                sessionStorage.setItem(dismissKey, '1');
+            } catch (err) { /* ignore */ }
+        };
+
+        const openVotePrompt = () => {
+            if (!votePrompt.hasAttribute('hidden') && votePrompt.classList.contains('is-open')) return;
+            promptFocus = document.activeElement;
+            votePrompt.hidden = false;
+            requestAnimationFrame(() => {
+                votePrompt.classList.add('is-open');
+                document.body.classList.add('vote-prompt-open');
+                lockScroll();
+                votePrompt.querySelector('.vote-pick, .btn, [data-vote-prompt-dismiss]')?.focus();
+            });
+        };
+
+        const closeVotePrompt = (persist = true) => {
+            if (votePrompt.hasAttribute('hidden')) return;
+            if (persist) markDismissed();
+            votePrompt.classList.remove('is-open');
+            document.body.classList.remove('vote-prompt-open');
+            unlockScroll();
+            window.setTimeout(() => {
+                votePrompt.hidden = true;
+                if (promptFocus && typeof promptFocus.focus === 'function') {
+                    promptFocus.focus();
+                }
+            }, 280);
+        };
+
+        votePrompt.querySelectorAll('[data-vote-prompt-dismiss]').forEach((el) => {
+            el.addEventListener('click', () => closeVotePrompt(true));
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && votePrompt.classList.contains('is-open')) {
+                closeVotePrompt(true);
+            }
+        });
+
+        const autoMode = votePrompt.getAttribute('data-auto-open') || '';
+        if (autoMode === 'login') {
+            try { sessionStorage.removeItem(dismissKey); } catch (err) { /* ignore */ }
+            window.setTimeout(openVotePrompt, 420);
+        } else if (autoMode === 'home' && !wasDismissed()) {
+            window.setTimeout(openVotePrompt, 520);
+        }
+    }
 })();

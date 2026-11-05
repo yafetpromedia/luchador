@@ -203,9 +203,59 @@ function active_polls(): array
     return array_values(array_filter($rows, static fn (array $row): bool => poll_effective_status($row) !== 'scheduled' && (string) $row['status'] !== 'draft'));
 }
 
+/** Active polls that have not reached starts_at yet. */
+function upcoming_polls(): array
+{
+    if (!table_exists(db(), 'polls')) {
+        return [];
+    }
+    $order = column_exists(db(), 'polls', 'is_decision')
+        ? 'is_decision DESC, featured DESC, starts_at ASC, id DESC'
+        : 'featured DESC, starts_at ASC, id DESC';
+    $rows = db()->query("SELECT * FROM polls WHERE status = 'active' ORDER BY {$order}")->fetchAll() ?: [];
+    return array_values(array_filter($rows, static fn (array $row): bool => poll_effective_status($row) === 'scheduled'));
+}
+
 function visible_polls(bool $decisions = false): array
 {
     return array_values(array_filter(active_polls(), static fn (array $row): bool => poll_is_decision($row) === $decisions));
+}
+
+/** Open/closed votes plus upcoming scheduled ones for the student lists. */
+function student_visible_polls(bool $decisions = false): array
+{
+    $open = visible_polls($decisions);
+    $upcoming = array_values(array_filter(upcoming_polls(), static fn (array $row): bool => poll_is_decision($row) === $decisions));
+    $seen = [];
+    $out = [];
+    foreach (array_merge($open, $upcoming) as $row) {
+        $id = (int) ($row['id'] ?? 0);
+        if ($id < 1 || isset($seen[$id])) {
+            continue;
+        }
+        $seen[$id] = true;
+        $out[] = $row;
+    }
+    return $out;
+}
+
+/** Force a poll live for voting right now (used by admin Open now). */
+function open_poll_now(int $id): ?array
+{
+    $row = poll_by_id($id);
+    if (!$row) {
+        return null;
+    }
+    db()->prepare(
+        'UPDATE polls
+         SET status = \'active\',
+             starts_at = CASE
+                 WHEN starts_at IS NULL OR starts_at > NOW() THEN NOW()
+                 ELSE starts_at
+             END
+         WHERE id = ?'
+    )->execute([$id]);
+    return poll_by_id($id);
 }
 
 function pick_home_poll(array $open): ?array
@@ -255,6 +305,53 @@ function home_decision(): ?array
         }
     }
     return pick_home_poll($open);
+}
+
+/** First open vote this student still needs to cast (decisions before casual polls). */
+function student_pending_open_vote(?array $student): ?array
+{
+    if (!$student || !can('polls.view') || !can('polls.vote')) {
+        return null;
+    }
+    $sid = (int) ($student['id'] ?? 0);
+    if ($sid < 1 || !table_exists(db(), 'polls')) {
+        return null;
+    }
+    $open = [];
+    foreach (array_merge(visible_polls(true), visible_polls(false)) as $row) {
+        if (!poll_is_open($row)) {
+            continue;
+        }
+        if (poll_vote_for_student((int) $row['id'], $sid)) {
+            continue;
+        }
+        $open[] = $row;
+    }
+    if ($open === []) {
+        return null;
+    }
+    usort($open, static function (array $a, array $b): int {
+        $ad = poll_is_decision($a) ? 1 : 0;
+        $bd = poll_is_decision($b) ? 1 : 0;
+        if ($ad !== $bd) {
+            return $bd <=> $ad;
+        }
+        $af = !empty($a['featured']) ? 1 : 0;
+        $bf = !empty($b['featured']) ? 1 : 0;
+        if ($af !== $bf) {
+            return $bf <=> $af;
+        }
+        $ae = (string) ($a['ends_at'] ?? '');
+        $be = (string) ($b['ends_at'] ?? '');
+        if ($ae !== '' && $be !== '' && $ae !== $be) {
+            return strcmp($ae, $be);
+        }
+        if ($ae !== $be) {
+            return $ae === '' ? 1 : -1;
+        }
+        return (int) $b['id'] <=> (int) $a['id'];
+    });
+    return $open[0];
 }
 
 function save_poll_options(int $pollId, array $labels): void

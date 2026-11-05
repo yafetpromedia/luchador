@@ -9,18 +9,20 @@ require_once dirname(__DIR__) . '/includes/interactions.php';
 student_boot();
 
 $poll = poll_by_id(request_int('id'));
-if (!$poll || (string) ($poll['status'] ?? '') === 'draft' || poll_effective_status($poll) === 'scheduled') {
+if (!$poll || (string) ($poll['status'] ?? '') === 'draft') {
     flash_set('error', 'That poll is not available.');
     redirect('student/polls.php');
 }
 
 $student = current_student();
 $user = current_user();
+$status = poll_effective_status($poll);
+$scheduled = $status === 'scheduled';
 $vote = $student ? poll_vote_for_student((int) $poll['id'], (int) $student['id']) : null;
 $options = poll_options((int) $poll['id']);
 $open = poll_is_open($poll) && $student && can('polls.vote');
 $canChange = $open && ($vote ? !empty($poll['allow_change']) : true);
-$showResults = poll_can_show_results($poll, (bool) $vote);
+$showResults = !$scheduled && poll_can_show_results($poll, (bool) $vote);
 $results = $showResults ? poll_results((int) $poll['id']) : null;
 
 if (is_post() && posted('action') === 'vote') {
@@ -58,14 +60,19 @@ student_header(poll_kind_label($poll), poll_is_decision($poll) ? 'decisions' : '
         <p><?= nl2br(e((string) $poll['description'])) ?></p>
     <?php endif; ?>
     <p class="muted">
-        <?= e(status_label(poll_effective_status($poll))) ?>
+        <?= e(status_label($status)) ?>
+        <?php if ($scheduled && !empty($poll['starts_at'])): ?>
+            · Opens <?= e(format_when((string) $poll['starts_at'])) ?>
+        <?php endif; ?>
         <?= interaction_closes_in($poll['ends_at'] ?? null) !== '' ? ' · ' . e(interaction_closes_in($poll['ends_at'] ?? null)) : '' ?>
         <?= !empty($poll['anonymous']) ? ' · Anonymous voting' : '' ?>
         <?= ($poll['choice_type'] ?? '') === 'multiple' ? ' · Select all that apply' : '' ?>
         <?= poll_is_decision($poll) ? ' · This vote counts for the class' : '' ?>
     </p>
 
-    <?php if ($vote): ?>
+    <?php if ($scheduled): ?>
+        <p class="poll-recorded">Voting is not open yet<?= !empty($poll['starts_at']) ? ' — starts ' . e(format_when((string) $poll['starts_at'])) : '' ?>.</p>
+    <?php elseif ($vote): ?>
         <p class="poll-recorded">Your vote has been recorded.</p>
     <?php endif; ?>
 
@@ -88,6 +95,8 @@ student_header(poll_kind_label($poll), poll_is_decision($poll) ? 'decisions' : '
                 <button class="btn" type="submit"><?= $vote ? 'Change vote' : 'Submit vote' ?></button>
             </div>
         </form>
+    <?php elseif ($scheduled): ?>
+        <?php /* Waiting for start — options stay hidden until open. */ ?>
     <?php elseif (!$student): ?>
         <p class="muted">Your account is not linked to a class record, so you cannot vote.</p>
     <?php elseif (!$open && !$vote): ?>

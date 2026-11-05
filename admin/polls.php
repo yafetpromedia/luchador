@@ -25,21 +25,29 @@ if (is_post()) {
             delete_poll($id);
             log_audit('poll.delete', 'poll', $id, $row['title'] ?? '');
             flash_set('success', 'Poll deleted. Student records were not changed.');
-        } elseif ($action === 'close' || $action === 'open') {
+        } elseif ($action === 'close' || $action === 'open' || $action === 'open_now') {
             require_permission('polls.close');
             $id = request_int('id');
             $row = poll_by_id($id);
             if (!$row) {
                 throw new InvalidArgumentException('Poll not found.');
             }
-            $status = $action === 'close' ? 'closed' : 'active';
-            db()->prepare('UPDATE polls SET status = ? WHERE id = ?')->execute([$status, $id]);
-            log_audit('poll.close', 'poll', $id, $row['title'] ?? '');
-            if ($status === 'active' && (string) ($row['status'] ?? '') !== 'active') {
-                $row['status'] = $status;
-                notify_students(poll_open_notice($row));
+            if ($action === 'close') {
+                db()->prepare('UPDATE polls SET status = ? WHERE id = ?')->execute(['closed', $id]);
+                log_audit('poll.close', 'poll', $id, $row['title'] ?? '');
+                flash_set('success', 'Poll closed.');
+            } else {
+                $wasOpen = poll_is_open($row);
+                $opened = open_poll_now($id);
+                if (!$opened) {
+                    throw new InvalidArgumentException('Poll not found.');
+                }
+                log_audit('poll.open', 'poll', $id, $row['title'] ?? '');
+                if (!$wasOpen) {
+                    notify_students(poll_open_notice($opened));
+                }
+                flash_set('success', 'Poll is open now. Students can vote immediately.');
             }
-            flash_set('success', $status === 'closed' ? 'Poll closed.' : 'Poll is now open.');
         } else {
             $id = posted('id') !== '' ? (int) posted('id') : null;
             require_permission($id ? 'polls.edit' : 'polls.create');
@@ -128,7 +136,11 @@ admin_page_head('Class polls and official class decisions. Students vote once; t
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="form-group"><label>Starts</label><input type="datetime-local" name="starts_at" value="<?= !empty($edit['starts_at']) ? e(date('Y-m-d\TH:i', strtotime((string) $edit['starts_at']))) : '' ?>"></div>
+            <div class="form-group">
+                <label>Starts</label>
+                <input type="datetime-local" name="starts_at" value="<?= !empty($edit['starts_at']) ? e(date('Y-m-d\TH:i', strtotime((string) $edit['starts_at']))) : '' ?>">
+                <p class="muted">Leave empty to open as soon as status is Active. A future start keeps it Scheduled until then — use Open now on the list to start early.</p>
+            </div>
             <div class="form-group"><label>Ends</label><input type="datetime-local" name="ends_at" value="<?= !empty($edit['ends_at']) ? e(date('Y-m-d\TH:i', strtotime((string) $edit['ends_at']))) : '' ?>"></div>
             <div class="form-group">
                 <label>Results</label>
@@ -187,14 +199,25 @@ admin_page_head('Class polls and official class decisions. Students vote once; t
             <td><?= (int) ($voteCount[(int) $row['id']] ?? 0) ?></td>
             <td><?= !empty($row['ends_at']) ? e(format_when($row['ends_at'])) : '—' ?></td>
             <td class="row-actions">
-                <a class="btn btn-sm btn-ghost" href="?edit=<?= (int) $row['id'] ?>">Open</a>
+                <a class="btn btn-sm btn-ghost" href="?edit=<?= (int) $row['id'] ?>">Edit</a>
                 <?php if (can('polls.close')): ?>
-                    <form method="post">
-                        <?= csrf_field() ?>
-                        <input type="hidden" name="action" value="<?= poll_effective_status($row) === 'closed' ? 'open' : 'close' ?>">
-                        <input type="hidden" name="id" value="<?= (int) $row['id'] ?>">
-                        <button class="btn btn-sm" type="submit"><?= poll_effective_status($row) === 'closed' ? 'Reopen' : 'Close' ?></button>
-                    </form>
+                    <?php $eff = poll_effective_status($row); ?>
+                    <?php if ($eff === 'scheduled' || (string) ($row['status'] ?? '') === 'draft' || $eff === 'closed'): ?>
+                        <form method="post">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="action" value="open_now">
+                            <input type="hidden" name="id" value="<?= (int) $row['id'] ?>">
+                            <button class="btn btn-sm" type="submit"><?= $eff === 'closed' ? 'Reopen now' : 'Open now' ?></button>
+                        </form>
+                    <?php endif; ?>
+                    <?php if ($eff === 'active' || $eff === 'scheduled'): ?>
+                        <form method="post">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="action" value="close">
+                            <input type="hidden" name="id" value="<?= (int) $row['id'] ?>">
+                            <button class="btn btn-sm btn-ghost" type="submit">Close</button>
+                        </form>
+                    <?php endif; ?>
                 <?php endif; ?>
                 <?php if (can('polls.delete')): ?>
                     <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int) $row['id'] ?>"><button class="btn btn-sm btn-danger" data-confirm="Votes for this poll will be removed. Student records stay." data-confirm-title="Delete poll?">Delete</button></form>

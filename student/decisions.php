@@ -8,7 +8,7 @@ require_once dirname(__DIR__) . '/includes/interactions.php';
 
 student_boot();
 
-$items = can('polls.view') ? visible_polls(true) : [];
+$items = can('polls.view') ? student_visible_polls(true) : [];
 student_header('Decisions', 'decisions', lead: 'Official class votes. These count for the class, not casual polls.');
 ?>
 
@@ -28,12 +28,14 @@ student_header('Decisions', 'decisions', lead: 'Official class votes. These coun
             <?php
             $status = poll_effective_status($poll);
             $closes = interaction_closes_in($poll['ends_at'] ?? null);
+            $opens = $status === 'scheduled' && !empty($poll['starts_at']) ? format_when((string) $poll['starts_at']) : '';
             ?>
             <a class="panel interact-link" href="<?= e(url('student/poll.php?id=' . (int) $poll['id'])) ?>">
                 <p class="eyebrow">Class decision</p>
                 <h2><?= e($poll['title']) ?></h2>
                 <p class="muted">
                     <?= e(status_label($status)) ?>
+                    <?php if ($opens !== ''): ?> · Opens <?= e($opens) ?><?php endif; ?>
                     <?= $closes !== '' ? ' · ' . e($closes) : '' ?>
                     <?= !empty($poll['anonymous']) ? ' · Anonymous' : '' ?>
                 </p>
