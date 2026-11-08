@@ -1093,8 +1093,42 @@ body:not(.admin-body) .cover .btn-ghost:hover {
 .cal-dot-academic { background: var(--color-info); }
 .cal-dot-sports { background: var(--color-success); }
 .cal-dot-social { background: var(--color-warning); }
-.cal-dot-graduation { background: var(--color-primary); }
+.cal-dot-graduation { background: #fafafa; box-shadow: inset 0 0 0 1px #a1a1aa; }
 .cal-dot-important { background: var(--color-danger); }
+.cal-dot-event { background: #fafafa; }
+.cal-dot-decision { background: #86efac; }
+.cal-dot-vote { background: #93c5fd; }
+.cal-dot-payment { background: #fcd34d; }
+.cal-summary {
+    margin: 0 0 0.65rem;
+    color: var(--color-text-muted);
+    font-size: 0.88rem;
+}
+.cal-legend {
+    list-style: none;
+    margin: 0 0 0.85rem;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem 0.9rem;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+.cal-legend li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+.cal-legend .cal-dot-graduation,
+.cal-legend .cal-dot-event {
+    background: #111113;
+    box-shadow: none;
+}
+.cal-agenda-list { margin-top: 1rem; }
+.stu-event-row .eyebrow {
+    margin: 0 0 0.15rem;
+    color: #71717a;
+}
 .cal-list { margin-top: 0.5rem; }
 .cal tbody tr:hover { background: transparent; }
 
