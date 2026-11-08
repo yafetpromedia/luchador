@@ -729,11 +729,21 @@
                 item.hidden = !match;
                 if (match) shown += 1;
             });
+            const isBubble = panel?.hasAttribute('data-cal-bubble');
             if (panel) {
-                panel.hidden = day < 1;
+                if (isBubble) {
+                    panel.hidden = day < 1 && items.length === 0;
+                    panel.classList.toggle('is-day', day > 0);
+                    panel.classList.toggle('is-month', day < 1);
+                } else {
+                    panel.hidden = day < 1;
+                }
             }
             if (heading) {
-                heading.textContent = day > 0 ? monthName + ' ' + day : '';
+                heading.textContent = day > 0 ? (monthName + ' ' + day) : (isBubble ? 'This month' : '');
+            }
+            if (clear) {
+                clear.hidden = day < 1;
             }
             if (empty) {
                 empty.hidden = !(day > 0 && shown === 0);

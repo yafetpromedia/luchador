@@ -67,7 +67,7 @@ function student_header(string $title, string $active = 'dashboard', bool $home 
     <title><?= e($title) ?> · <?= e(class_name()) ?></title>
     <link rel="icon" href="<?= e(url('assets/images/favicon.svg')) ?>" type="image/svg+xml">
     <?php site_font_links(); ?>
-    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=78">
+    <link rel="stylesheet" href="<?= e(url('assets/css/app.css')) ?>?v=79">
 </head>
 <body class="student-body<?= $home ? ' is-home' : '' ?>">
     <a class="skip-link" href="#main"><?= e(t('skip')) ?></a>
@@ -239,7 +239,7 @@ function student_footer(string $active = 'dashboard'): void
             </div>
         </div>
     <?php endif; ?>
-    <script src="<?= e(url('assets/js/app.js')) ?>?v=21"></script>
+    <script src="<?= e(url('assets/js/app.js')) ?>?v=22"></script>
     <script src="<?= e(url('assets/js/culture-graph.js')) ?>?v=6"></script>
 </body>
 </html>

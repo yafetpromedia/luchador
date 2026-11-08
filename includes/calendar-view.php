@@ -336,8 +336,10 @@ function render_class_calendar(array $opts): void
                                     <i class="cal-dot cal-dot-<?= e(preg_replace('/[^a-z]/', '', strtolower($kind)) ?: 'event') ?>"></i>
                                 <?php endforeach; ?>
                             </span>
-                            <?php if ($first): ?>
+                            <?php if ($first && !$studentRows): ?>
                                 <span class="cal-title"><?= e((string) $first['title']) ?><?php if (count($items) > 1): ?> <b>+<?= count($items) - 1 ?></b><?php endif; ?></span>
+                            <?php elseif ($has && count($items) > 1 && $studentRows): ?>
+                                <span class="cal-count">+<?= count($items) - 1 ?></span>
                             <?php endif; ?>
                         <?php endif; ?>
                     </a>
@@ -347,6 +349,54 @@ function render_class_calendar(array $opts): void
         </tbody>
     </table>
 
+    <?php if ($studentRows): ?>
+        <div class="cal-bubble<?= $day > 0 ? ' is-day' : ' is-month' ?>" data-cal-panel data-cal-bubble <?= ($day < 1 && !$monthRows) ? 'hidden' : '' ?>>
+            <div class="cal-bubble-card">
+                <div class="panel-head">
+                    <h3 data-cal-heading><?= $day > 0 ? e($month->format('F') . ' ' . $day) : e('This month') ?></h3>
+                    <?php if ($day > 0): ?>
+                        <a href="<?= e(calendar_href($base, $stamp, 0, $category, $hash)) ?>" data-cal-clear>Show all</a>
+                    <?php endif; ?>
+                </div>
+                <p class="muted" data-cal-empty <?= ($day > 0 && !$dayEvents) ? '' : 'hidden' ?>><?= e($emptyDay) ?></p>
+                <?php if ($monthRows): ?>
+                    <div class="stu-event-list cal-agenda-list">
+                        <?php foreach ($monthRows as $event): ?>
+                            <?php
+                            $eventDay = event_day_number((string) ($event['event_date'] ?? ''));
+                            $itemHref = trim((string) ($event['href'] ?? ''));
+                            if ($itemHref === '') {
+                                $itemHref = $eventBase . '?id=' . (int) ($event['id'] ?? 0);
+                            }
+                            $kindLabel = (string) ($event['kind_label'] ?? '');
+                            if ($kindLabel === '' && !empty($event['category'])) {
+                                $kindLabel = status_label((string) $event['category']);
+                            }
+                            ?>
+                            <a class="stu-event-row" data-cal-item="<?= (int) $eventDay ?>" <?= ($day > 0 && $eventDay !== $day) ? 'hidden' : '' ?> href="<?= e(url($itemHref)) ?>">
+                                <time class="stu-event-when" datetime="<?= e((string) ($event['event_date'] ?? '')) ?>">
+                                    <span><?= e(format_date($event['event_date'] ?? null, 'M') ?: 'TBA') ?></span>
+                                    <b><?= e(format_date($event['event_date'] ?? null, 'j') ?: '—') ?></b>
+                                </time>
+                                <div>
+                                    <?php if ($kindLabel !== ''): ?>
+                                        <p class="eyebrow"><?= e($kindLabel) ?></p>
+                                    <?php endif; ?>
+                                    <strong><?= e((string) ($event['title'] ?? 'Class item')) ?></strong>
+                                    <p class="muted">
+                                        <?= !empty($event['event_date']) ? e(format_date($event['event_date'])) : 'Date to be announced' ?>
+                                        <?php if (!empty($event['event_time'])): ?> · <?= e((string) $event['event_time']) ?><?php endif; ?>
+                                        <?php if (!empty($event['location'])): ?> · <?= e((string) $event['location']) ?><?php endif; ?>
+                                        <?php if (!empty($event['detail'])): ?> · <?= e((string) $event['detail']) ?><?php endif; ?>
+                                    </p>
+                                </div>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    <?php else: ?>
         <div class="cal-day-panel" data-cal-panel <?= $day > 0 ? '' : 'hidden' ?>>
             <div class="panel-head">
                 <h3 data-cal-heading><?= $day > 0 ? e($month->format('F') . ' ' . $day) : '' ?></h3>
@@ -354,42 +404,11 @@ function render_class_calendar(array $opts): void
             </div>
             <p class="muted" data-cal-empty <?= ($day > 0 && !$dayEvents) ? '' : 'hidden' ?>><?= e($emptyDay) ?></p>
         </div>
+    <?php endif; ?>
 
     <?php if ($monthRows): ?>
         <?php if ($studentRows): ?>
-            <div class="stu-event-list cal-agenda-list">
-                <?php foreach ($monthRows as $event): ?>
-                    <?php
-                    $eventDay = event_day_number((string) ($event['event_date'] ?? ''));
-                    $itemHref = trim((string) ($event['href'] ?? ''));
-                    if ($itemHref === '') {
-                        $itemHref = $eventBase . '?id=' . (int) ($event['id'] ?? 0);
-                    }
-                    $kindLabel = (string) ($event['kind_label'] ?? '');
-                    if ($kindLabel === '' && !empty($event['category'])) {
-                        $kindLabel = status_label((string) $event['category']);
-                    }
-                    ?>
-                    <a class="stu-event-row" data-cal-item="<?= (int) $eventDay ?>" <?= ($day > 0 && $eventDay !== $day) ? 'hidden' : '' ?> href="<?= e(url($itemHref)) ?>">
-                        <time class="stu-event-when" datetime="<?= e((string) ($event['event_date'] ?? '')) ?>">
-                            <span><?= e(format_date($event['event_date'] ?? null, 'M') ?: 'TBA') ?></span>
-                            <b><?= e(format_date($event['event_date'] ?? null, 'j') ?: '—') ?></b>
-                        </time>
-                        <div>
-                            <?php if ($kindLabel !== ''): ?>
-                                <p class="eyebrow"><?= e($kindLabel) ?></p>
-                            <?php endif; ?>
-                            <strong><?= e((string) ($event['title'] ?? 'Class item')) ?></strong>
-                            <p class="muted">
-                                <?= !empty($event['event_date']) ? e(format_date($event['event_date'])) : 'Date to be announced' ?>
-                                <?php if (!empty($event['event_time'])): ?> · <?= e((string) $event['event_time']) ?><?php endif; ?>
-                                <?php if (!empty($event['location'])): ?> · <?= e((string) $event['location']) ?><?php endif; ?>
-                                <?php if (!empty($event['detail'])): ?> · <?= e((string) $event['detail']) ?><?php endif; ?>
-                            </p>
-                        </div>
-                    </a>
-                <?php endforeach; ?>
-            </div>
+            <?php /* Agenda lives inside the day bubble above. */ ?>
         <?php else: ?>
         <ol class="editorial-list cal-agenda">
             <?php foreach ($monthRows as $event): ?>
