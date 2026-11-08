@@ -25,13 +25,7 @@ if ($day < 1 || $day > $daysInMonth) {
     $day = 0;
 }
 
-// Prefer today when this month has something today and no day was chosen.
-if ($day === 0 && $month->format('Y-m') === date('Y-m')) {
-    $today = (int) date('j');
-    if (!empty($cal['by_day'][$today])) {
-        $day = $today;
-    }
-}
+// Do not auto-open a day — keep the grid calm until the student picks one.
 
 $nextItem = null;
 $probeMonth = new DateTimeImmutable('first day of this month');

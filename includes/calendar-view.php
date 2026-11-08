@@ -137,20 +137,24 @@ function class_calendar_month(DateTimeImmutable $month): array
     if (!function_exists('payment_items')) {
         require_once __DIR__ . '/payments.php';
     }
-    foreach (payment_items(true) as $item) {
-        $end = substr((string) ($item['end_date'] ?? ''), 0, 10);
-        if (!calendar_date_in_month($end, $start, $endExclusive)) {
-            continue;
+    // Payment due dates only while at least one pay account is Active for students.
+    $payOpen = payment_accounts(true) !== [];
+    if ($payOpen) {
+        foreach (payment_items(true) as $item) {
+            $end = substr((string) ($item['end_date'] ?? ''), 0, 10);
+            if (!calendar_date_in_month($end, $start, $endExclusive)) {
+                continue;
+            }
+            $items[] = calendar_entry(
+                'payment',
+                'Payment due: ' . (string) ($item['title'] ?? 'Class payment'),
+                $end,
+                'student/payment.php',
+                null,
+                null,
+                !empty($item['target_amount']) ? (format_etb($item['target_amount']) ?: '') : 'Open fee'
+            );
         }
-        $items[] = calendar_entry(
-            'payment',
-            'Payment due: ' . (string) ($item['title'] ?? 'Class payment'),
-            $end,
-            'student/payment.php',
-            null,
-            null,
-            !empty($item['target_amount']) ? (format_etb($item['target_amount']) ?: '') : 'Open fee'
-        );
     }
 
     usort($items, static function (array $a, array $b): int {
@@ -211,10 +215,12 @@ function next_class_calendar_stamp(): string
     if (!function_exists('payment_items')) {
         require_once __DIR__ . '/payments.php';
     }
-    foreach (payment_items(true) as $item) {
-        $end = substr((string) ($item['end_date'] ?? ''), 0, 10);
-        if ($end !== '' && $end >= $today) {
-            $candidates[] = $end;
+    if (payment_accounts(true) !== []) {
+        foreach (payment_items(true) as $item) {
+            $end = substr((string) ($item['end_date'] ?? ''), 0, 10);
+            if ($end !== '' && $end >= $today) {
+                $candidates[] = $end;
+            }
         }
     }
 
@@ -326,9 +332,21 @@ function render_class_calendar(array $opts): void
                 foreach ($items as $item) {
                     $kinds[(string) ($item['kind'] ?? $item['category'] ?? 'event')] = true;
                 }
+                $tip = '';
+                if ($studentRows && $has && $first) {
+                    $tip = (string) ($first['title'] ?? '');
+                    if (count($items) > 1) {
+                        $tip .= ' · +' . (count($items) - 1) . ' more';
+                    }
+                }
             ?>
                 <td>
-                    <a class="<?= e($classes) ?>" href="<?= e($href) ?>" data-cal-day="<?= (int) $d ?>">
+                    <a
+                        class="<?= e($classes) ?>"
+                        href="<?= e($href) ?>"
+                        data-cal-day="<?= (int) $d ?>"
+                        <?php if ($tip !== ''): ?>data-cal-tip="<?= e($tip) ?>"<?php endif; ?>
+                    >
                         <span class="cal-num"><?= $d ?></span>
                         <?php if ($has): ?>
                             <span class="cal-dots" aria-hidden="true">
@@ -341,6 +359,9 @@ function render_class_calendar(array $opts): void
                             <?php elseif ($has && count($items) > 1 && $studentRows): ?>
                                 <span class="cal-count">+<?= count($items) - 1 ?></span>
                             <?php endif; ?>
+                        <?php endif; ?>
+                        <?php if ($tip !== ''): ?>
+                            <span class="cal-tip" role="tooltip"><?= e($tip) ?></span>
                         <?php endif; ?>
                     </a>
                 </td>
