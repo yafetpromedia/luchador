@@ -90,10 +90,26 @@ public_header(site_title(), 'home', setting('hero_message'), true);
 
 
 <?php if ($timeline || $achievements): ?>
-<section class="section" id="year">
+<section class="section section-visual" id="year">
     <div class="container">
-        <p class="eyebrow"><?= e(t('home.our_year')) ?></p>
-        <h2><?= e(setting('academic_year') ?: t('home.this_year')) ?></h2>
+        <div class="visual-head">
+            <div>
+                <p class="eyebrow"><?= e(t('home.our_year')) ?></p>
+                <h2><?= e(setting('academic_year') ?: t('home.this_year')) ?></h2>
+            </div>
+            <?php if ($showGallery): ?>
+                <a class="text-link" href="#gallery"><?= e(t('nav.gallery')) ?></a>
+            <?php endif; ?>
+        </div>
+        <?php if ($showGallery): ?>
+            <div class="visual-film">
+                <?php foreach (array_slice($photos, 0, 4) as $photo): ?>
+                    <a href="#gallery">
+                        <img src="<?= e(gallery_photo_url((int) $photo['id'], false, 'view')) ?>" alt="<?= e((string) ($photo['title'] ?? '')) ?>">
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
         <?php if ($timeline): ?>
             <div class="year-track">
                 <?php foreach ($timeline as $bucket): ?>
@@ -113,7 +129,14 @@ public_header(site_title(), 'home', setting('hero_message'), true);
                                     $link = '#' . ltrim($href, '#');
                                 }
                                 ?>
-                                <li><a href="<?= e($link) ?>"><?= e($item['title']) ?></a></li>
+                                <li>
+                                    <a href="<?= e($link) ?>">
+                                        <?php if (!empty($item['date'])): ?>
+                                            <time><?= e(format_date($item['date'], 'M j')) ?></time>
+                                        <?php endif; ?>
+                                        <span><?= e($item['title']) ?></span>
+                                    </a>
+                                </li>
                             <?php endforeach; ?>
                         </ul>
                     </article>
@@ -121,10 +144,10 @@ public_header(site_title(), 'home', setting('hero_message'), true);
             </div>
         <?php endif; ?>
         <?php if ($achievements): ?>
-            <ol class="editorial-list" style="margin-top:1.25rem">
+            <ol class="moment-row">
                 <?php foreach ($achievements as $i => $item): ?>
                     <li>
-                        <span class="editorial-index"><?= str_pad((string) ($i + 1), 2, '0', STR_PAD_LEFT) ?></span>
+                        <span><?= str_pad((string) ($i + 1), 2, '0', STR_PAD_LEFT) ?></span>
                         <div>
                             <strong><?= e($item['title']) ?></strong>
                             <p class="muted"><?= e(format_date($item['achieved_on'] ?? null)) ?></p>
@@ -144,7 +167,11 @@ public_header(site_title(), 'home', setting('hero_message'), true);
         <h2><?= e(t('home.class_calendar')) ?></h2>
         <div class="events-fit">
         <?php if ($nextEvent): ?>
-            <article class="feature-block">
+            <?php
+            $nextPhotos = event_photos((int) $nextEvent['id']);
+            $nextPhoto = trim((string) ($nextPhotos[0]['image_path'] ?? ''));
+            ?>
+            <article class="feature-block feature-visual<?= $nextPhoto !== '' ? ' has-photo' : '' ?>">
                 <?php if (!empty($nextEvent['event_date'])): ?>
                     <p class="feature-date">
                         <span><?= e(format_date($nextEvent['event_date'], 'M')) ?></span>
@@ -159,6 +186,11 @@ public_header(site_title(), 'home', setting('hero_message'), true);
                     </p>
                     <a class="text-link" href="<?= e(url('event.php?id=' . (int) $nextEvent['id'])) ?>"><?= e(t('home.details')) ?></a>
                 </div>
+                <?php if ($nextPhoto !== ''): ?>
+                    <a class="feature-photo" href="<?= e(url('event.php?id=' . (int) $nextEvent['id'])) ?>">
+                        <img src="<?= e(url($nextPhoto)) ?>" alt="">
+                    </a>
+                <?php endif; ?>
             </article>
         <?php endif; ?>
 
@@ -204,11 +236,13 @@ public_header(site_title(), 'home', setting('hero_message'), true);
 <?php endif; ?>
 
 <?php if ($showGallery): ?>
-<section class="section" id="gallery">
+<section class="section section-visual" id="gallery">
     <div class="container">
-        <div>
-            <p class="eyebrow"><?= e(t('home.photos')) ?></p>
-            <h2><?= e(t('nav.gallery')) ?></h2>
+        <div class="visual-head">
+            <div>
+                <p class="eyebrow"><?= e(t('home.photos')) ?></p>
+                <h2><?= e(t('nav.gallery')) ?></h2>
+            </div>
         </div>
         <div class="filters" data-gallery-filters>
             <?php foreach ($galleryCats as $key => $label): ?>
@@ -221,13 +255,15 @@ public_header(site_title(), 'home', setting('hero_message'), true);
 <?php endif; ?>
 
 <?php if ($showMemories): ?>
-<section class="section" id="memories">
+<section class="section section-visual" id="memories">
     <div class="container">
-        <div>
-            <p class="eyebrow"><?= e(t('home.words')) ?></p>
-            <h2><?= e(t('home.memories')) ?></h2>
+        <div class="visual-head">
+            <div>
+                <p class="eyebrow"><?= e(t('home.words')) ?></p>
+                <h2><?= e(t('home.memories')) ?></h2>
+            </div>
         </div>
-        <div class="memory-wall">
+        <div class="memory-wall memory-visual">
             <?php foreach ($messages as $item): ?>
                 <blockquote class="home-quote">
                     <p><?= e($item['body']) ?></p>
@@ -245,12 +281,16 @@ public_header(site_title(), 'home', setting('hero_message'), true);
 </section>
 <?php endif; ?>
 
-<section class="section" id="journey">
+<section class="section section-visual" id="journey">
     <div class="container">
-        <p class="eyebrow"><?= e(t('home.journey')) ?></p>
-        <h2><?= e(t('home.who_we_are')) ?></h2>
-        <div class="<?= $milestones ? 'split' : '' ?>">
-            <article class="prose">
+        <div class="visual-head">
+            <div>
+                <p class="eyebrow"><?= e(t('home.journey')) ?></p>
+                <h2><?= e(t('home.who_we_are')) ?></h2>
+            </div>
+        </div>
+        <div class="journey-layout<?= $milestones ? ' has-path' : '' ?>">
+            <article class="prose story-copy">
                 <?php if (setting('about_who')): ?><p><?= e(setting('about_who')) ?></p><?php endif; ?>
                 <?php if (setting('about_community')): ?><p><?= e(setting('about_community')) ?></p><?php endif; ?>
                 <?php if (setting('about_academic')): ?><p><?= e(setting('about_academic')) ?></p><?php endif; ?>
@@ -259,7 +299,7 @@ public_header(site_title(), 'home', setting('hero_message'), true);
                 <?php endif; ?>
             </article>
             <?php if ($milestones): ?>
-                <div>
+                <aside class="path-panel">
                     <h3><?= e(t('home.the_path')) ?></h3>
                     <ol class="journey">
                         <?php foreach ($milestones as $item): ?>
@@ -269,16 +309,31 @@ public_header(site_title(), 'home', setting('hero_message'), true);
                             </li>
                         <?php endforeach; ?>
                     </ol>
-                </div>
+                </aside>
             <?php endif; ?>
         </div>
         <?php if ($spotlights): ?>
-            <?php $spot = $spotlights[0]; ?>
-            <article class="spotlight-inline">
-                <p class="eyebrow"><?= e(t('home.spotlight')) ?></p>
-                <h3><?= e($spot['student_name']) ?></h3>
-                <?php if ($spot['title']): ?><p><?= e($spot['title']) ?></p><?php endif; ?>
-                <?php if ($spot['description']): ?><p class="muted"><?= e($spot['description']) ?></p><?php endif; ?>
+            <?php
+            $spot = $spotlights[0];
+            $spotPhoto = trim((string) ($spot['photo'] ?? ''));
+            $spotWords = preg_split('/\s+/u', trim((string) $spot['student_name'])) ?: [];
+            $spotMark = '';
+            foreach (array_slice(array_values(array_filter($spotWords)), 0, 2) as $word) {
+                $spotMark .= mb_strtoupper(mb_substr((string) $word, 0, 1));
+            }
+            ?>
+            <article class="spotlight-card">
+                <?php if ($spotPhoto !== ''): ?>
+                    <img class="spotlight-photo" src="<?= e(url($spotPhoto)) ?>" alt="<?= e($spot['student_name']) ?>">
+                <?php else: ?>
+                    <span class="spotlight-mark" aria-hidden="true"><?= e($spotMark !== '' ? $spotMark : '★') ?></span>
+                <?php endif; ?>
+                <div>
+                    <p class="eyebrow"><?= e(t('home.spotlight')) ?></p>
+                    <h3><?= e($spot['student_name']) ?></h3>
+                    <?php if ($spot['title']): ?><p class="spotlight-title"><?= e($spot['title']) ?></p><?php endif; ?>
+                    <?php if ($spot['description']): ?><p class="muted"><?= e($spot['description']) ?></p><?php endif; ?>
+                </div>
             </article>
         <?php endif; ?>
     </div>
