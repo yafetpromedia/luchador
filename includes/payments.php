@@ -297,6 +297,11 @@ function payment_account_snapshot(array $account): string
     return excerpt(implode(' · ', array_filter($parts)), 180);
 }
 
+function payment_method_is_cash(string $method): bool
+{
+    return $method === 'cash';
+}
+
 function save_payment_account(array $src, ?int $id = null): array
 {
     $label = trim((string) ($src['label'] ?? ''));
@@ -305,7 +310,15 @@ function save_payment_account(array $src, ?int $id = null): array
     if (!isset(payment_methods()[$method])) {
         $method = 'other';
     }
-    if ($label === '' || $number === '') {
+    $isCash = payment_method_is_cash($method);
+    if ($isCash) {
+        if ($label === '') {
+            $label = 'Cash';
+        }
+        if ($number === '') {
+            $number = 'In person';
+        }
+    } elseif ($label === '' || $number === '') {
         throw new InvalidArgumentException('Account name and account or phone number are required.');
     }
     $phone = excerpt(trim((string) ($src['phone_number'] ?? '')), 40) ?: null;
@@ -854,7 +867,10 @@ function submit_payment_transaction(array $student, array $src, array $files, in
         $account = null;
     }
     $published = payment_accounts(true);
-    if ($published && !$account) {
+    if (!$published) {
+        throw new InvalidArgumentException('Payment accounts are not open yet. Ask the class office.');
+    }
+    if (!$account) {
         throw new InvalidArgumentException('Choose the account you paid into.');
     }
     if ($account) {

@@ -845,4 +845,55 @@
             reportForm.requestSubmit();
         }
     });
+
+    document.querySelectorAll('[data-payment-account]').forEach((form) => {
+        const method = form.querySelector('[data-account-method]');
+        const labelInput = form.querySelector('[data-account-label]');
+        const labelText = form.querySelector('[data-account-label-text]');
+        const numberInput = form.querySelector('[data-account-number]');
+        const numberLabel = form.querySelector('[data-account-number-label]');
+        const notesInput = form.querySelector('[data-account-notes]');
+        const cashHint = form.querySelector('[data-cash-hint]');
+        const hideWhenCash = form.querySelectorAll('[data-hide-when-cash]');
+
+        const syncAccountMethod = () => {
+            const isCash = (method?.value || '') === 'cash';
+            if (labelText && labelInput) {
+                labelText.textContent = isCash
+                    ? (labelInput.getAttribute('data-label-cash') || 'Cash desk / name')
+                    : (labelInput.getAttribute('data-label-bank') || 'Bank or wallet name');
+                labelText.classList.toggle('req', !isCash);
+            }
+            if (labelInput) {
+                labelInput.placeholder = isCash
+                    ? (labelInput.getAttribute('data-ph-cash') || 'Cash')
+                    : (labelInput.getAttribute('data-ph-bank') || '');
+                labelInput.required = !isCash;
+            }
+            if (numberLabel && numberInput) {
+                numberLabel.textContent = isCash
+                    ? (numberInput.getAttribute('data-label-cash') || 'Reference (optional)')
+                    : (numberInput.getAttribute('data-label-bank') || 'Account or phone number');
+                numberLabel.classList.toggle('req', !isCash);
+            }
+            if (numberInput) {
+                numberInput.placeholder = isCash
+                    ? (numberInput.getAttribute('data-ph-cash') || '')
+                    : (numberInput.getAttribute('data-ph-bank') || '');
+                numberInput.required = !isCash;
+            }
+            if (notesInput) {
+                notesInput.placeholder = isCash
+                    ? (notesInput.getAttribute('data-ph-cash') || '')
+                    : (notesInput.getAttribute('data-ph-bank') || '');
+            }
+            if (cashHint) cashHint.hidden = !isCash;
+            hideWhenCash.forEach((el) => {
+                el.hidden = isCash;
+            });
+        };
+
+        method?.addEventListener('change', syncAccountMethod);
+        syncAccountMethod();
+    });
 })();

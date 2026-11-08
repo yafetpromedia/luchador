@@ -31,7 +31,11 @@ if ($homeQuestion) {
 $hasFeed = (bool) ($nextEvent || $announcements || $photos || $voteBlocks || $homeQuestion);
 $studentCode = trim((string) ($student['student_code'] ?? ''));
 $uniformSize = trim((string) ($student['size'] ?? ''));
-$payStatus = (string) ($student['payment_status'] ?? 'unpaid');
+$payStatus = 'unpaid';
+if ($student) {
+    require_once dirname(__DIR__) . '/includes/payments.php';
+    $payStatus = sync_student_payment_status((int) $student['id']);
+}
 
 student_header('Home', 'dashboard', true);
 ?>

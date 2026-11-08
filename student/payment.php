@@ -12,7 +12,7 @@ student_boot();
 $student = current_student();
 $user = current_user();
 $accounts = payment_accounts(true);
-$progressList = $student ? student_payment_progress_list((int) $student['id']) : [];
+$paymentsOpen = $accounts !== [];
 $historyAll = $student ? payment_transactions_for_student((int) $student['id']) : [];
 $historyStatus = trim((string) ($_GET['status'] ?? 'all'));
 if (!in_array($historyStatus, ['all', 'pending', 'verified', 'rejected'], true)) {
@@ -20,11 +20,15 @@ if (!in_array($historyStatus, ['all', 'pending', 'verified', 'rejected'], true))
 }
 $history = $student ? payment_transactions_for_student((int) $student['id'], $historyStatus) : [];
 $historyCounts = ['all' => 0, 'pending' => 0, 'verified' => 0, 'rejected' => 0];
+$hasPaymentActivity = false;
 foreach ($historyAll as $row) {
     $historyCounts['all']++;
     $st = (string) ($row['status'] ?? '');
     if (isset($historyCounts[$st])) {
         $historyCounts[$st]++;
+    }
+    if (in_array($st, ['pending', 'verified'], true)) {
+        $hasPaymentActivity = true;
     }
 }
 $historyGroups = [];
@@ -32,8 +36,15 @@ foreach ($history as $row) {
     $label = trim((string) ($row['item_title'] ?? '')) ?: 'Payment';
     $historyGroups[$label][] = $row;
 }
-$status = (string) ($student['payment_status'] ?? 'unpaid');
-$canSubmit = $student && can('payment.submit_own');
+// Fee cards stay private until an account is published, unless this student already has payment activity.
+$progressList = ($student && ($paymentsOpen || $hasPaymentActivity))
+    ? student_payment_progress_list((int) $student['id'])
+    : [];
+$status = 'unpaid';
+if ($student) {
+    $status = sync_student_payment_status((int) $student['id']);
+}
+$canSubmit = $student && can('payment.submit_own') && $paymentsOpen;
 $today = date('Y-m-d');
 
 if (is_post() && $student) {
@@ -87,6 +98,17 @@ student_header('Pay', 'payment', lead: 'Choose what you are paying for, send the
                 <?php foreach ($progressList as $progress): ?>
                     <?php $item = $progress['item']; ?>
                     <article class="pay-progress-card">
+                        <?php
+                        $cardStatus = 'unpaid';
+                        if (($progress['verified'] ?? 0) > 0 && ($progress['remaining'] ?? 1) <= 0) {
+                            $cardStatus = 'paid';
+                        } elseif (($progress['verified'] ?? 0) > 0) {
+                            $cardStatus = 'partial';
+                        } elseif (($progress['pending'] ?? 0) > 0) {
+                            $cardStatus = 'pending';
+                        }
+                        ?>
+                        <p class="pay-progress-status"><span class="badge badge-<?= e($cardStatus) ?>"><?= e(status_label($cardStatus)) ?></span></p>
                         <h2><?= e($item['title'] ?? 'Payment') ?></h2>
                         <?php if (!empty($item['description'])): ?>
                             <p class="muted"><?= nl2br(e((string) $item['description'])) ?></p>
@@ -119,20 +141,25 @@ student_header('Pay', 'payment', lead: 'Choose what you are paying for, send the
     <section class="pay-accounts" aria-labelledby="pay-accounts-title">
         <h2 id="pay-accounts-title">Where to pay</h2>
         <?php if (!$accounts): ?>
-            <p class="muted">Payment accounts appear here once the class office publishes them. Ask a class administrator if you need to pay now.</p>
+            <p class="muted">No payment account is open right now. When the class office publishes bank, Telebirr, or cash details, they appear here.</p>
         <?php else: ?>
-            <p class="muted">Use one of these class accounts. Copy the number, pay, then send a receipt for each transfer.</p>
+            <p class="muted">Use one of these class payment options. For transfers, copy the number, pay, then send a receipt. For cash, pay in person and still send proof if the office asks.</p>
             <div class="pay-account-list">
                 <?php foreach ($accounts as $account): ?>
+                    <?php $isCash = payment_method_is_cash((string) ($account['method'] ?? '')); ?>
                     <article class="pay-account-card">
                         <p class="eyebrow"><?= e(payment_method_label((string) $account['method'])) ?></p>
                         <h3><?= e($account['label']) ?></h3>
                         <?php if (!empty($account['account_name'])): ?>
                             <p class="muted"><?= e($account['account_name']) ?></p>
                         <?php endif; ?>
-                        <p class="pay-account-number"><code><?= e($account['account_number']) ?></code></p>
-                        <button type="button" class="btn btn-ghost btn-sm" data-copy="<?= e($account['account_number']) ?>">Copy number</button>
-                        <?php if (!empty($account['phone_number']) && (string) $account['phone_number'] !== (string) $account['account_number']): ?>
+                        <?php if ($isCash): ?>
+                            <p class="pay-account-number"><code><?= e((string) ($account['account_number'] ?: 'In person')) ?></code></p>
+                        <?php else: ?>
+                            <p class="pay-account-number"><code><?= e($account['account_number']) ?></code></p>
+                            <button type="button" class="btn btn-ghost btn-sm" data-copy="<?= e($account['account_number']) ?>">Copy number</button>
+                        <?php endif; ?>
+                        <?php if (!$isCash && !empty($account['phone_number']) && (string) $account['phone_number'] !== (string) $account['account_number']): ?>
                             <p class="muted"><?= e($account['phone_number']) ?></p>
                         <?php endif; ?>
                         <?php if (!empty($account['notes'])): ?>
@@ -169,7 +196,13 @@ student_header('Pay', 'payment', lead: 'Choose what you are paying for, send the
                     <select id="account_id" name="account_id" required>
                         <option value="">Choose account</option>
                         <?php foreach ($accounts as $account): ?>
-                            <option value="<?= (int) $account['id'] ?>"><?= e($account['label'] . ' · ' . $account['account_number']) ?></option>
+                            <?php
+                            $optLabel = (string) ($account['label'] ?? '');
+                            $optExtra = payment_method_is_cash((string) ($account['method'] ?? ''))
+                                ? 'In person'
+                                : (string) ($account['account_number'] ?? '');
+                            ?>
+                            <option value="<?= (int) $account['id'] ?>"><?= e(trim($optLabel . ($optExtra !== '' ? ' · ' . $optExtra : ''))) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -203,6 +236,8 @@ student_header('Pay', 'payment', lead: 'Choose what you are paying for, send the
                 <button class="btn" type="submit">Send for verification</button>
             </div>
         </form>
+    <?php elseif ($student && can('payment.submit_own') && !$paymentsOpen): ?>
+        <p class="muted">Sending a receipt opens after the class office publishes a payment account.</p>
     <?php elseif ($student): ?>
         <p class="muted">Payment proof is sent from this page once the class office enables it.</p>
     <?php endif; ?>

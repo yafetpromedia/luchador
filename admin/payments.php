@@ -673,27 +673,74 @@ $hasFilters = $filters['q'] !== ''
 
 <div class="panel" id="accounts">
     <h2><?= $edit ? 'Update account' : 'Payment accounts' ?></h2>
-    <p class="muted">These are the accounts students pay to. Add the real CBE, Telebirr, or bank details. Nothing is published until you save an account here.</p>
+    <p class="muted">Publish where students pay: bank, Telebirr, CBE Birr, or cash in person. Disabled accounts stay hidden from students. Fee cards and receipt upload also stay closed until at least one account is Active.</p>
     <?php if ($canAccounts): ?>
-    <form method="post" data-loading>
+    <?php $editMethod = (string) ($edit['method'] ?? 'bank'); ?>
+    <form method="post" data-loading data-payment-account>
         <?= csrf_field() ?>
         <input type="hidden" name="action" value="account_save">
         <input type="hidden" name="id" value="<?= e((string) ($edit['id'] ?? '')) ?>">
         <div class="form-grid">
             <div class="form-group">
                 <label class="req" for="method">Type</label>
-                <select id="method" name="method">
+                <select id="method" name="method" data-account-method>
                     <?php foreach (payment_methods() as $key => $label): ?>
-                        <option value="<?= e($key) ?>" <?= (($edit['method'] ?? 'bank') === $key) ? 'selected' : '' ?>><?= e($label) ?></option>
+                        <option value="<?= e($key) ?>" <?= ($editMethod === $key) ? 'selected' : '' ?>><?= e($label) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="form-group"><label class="req" for="label">Bank or wallet name</label><input id="label" name="label" required value="<?= e($edit['label'] ?? '') ?>" placeholder="Commercial Bank of Ethiopia"></div>
-            <div class="form-group"><label for="account_name">Account holder</label><input id="account_name" name="account_name" value="<?= e($edit['account_name'] ?? '') ?>" placeholder="Class name or officer"></div>
-            <div class="form-group"><label class="req" for="account_number">Account or phone number</label><input id="account_number" name="account_number" required value="<?= e($edit['account_number'] ?? '') ?>" placeholder="The number students pay to"></div>
-            <div class="form-group"><label for="phone_number">Phone number</label><input id="phone_number" name="phone_number" value="<?= e($edit['phone_number'] ?? '') ?>" placeholder="If different from the account number"></div>
+            <div class="form-group">
+                <label class="req" for="label" data-account-label-text>Bank or wallet name</label>
+                <input
+                    id="label"
+                    name="label"
+                    value="<?= e($edit['label'] ?? '') ?>"
+                    data-account-label
+                    data-label-bank="Bank or wallet name"
+                    data-label-cash="Cash desk / name"
+                    data-ph-bank="Commercial Bank of Ethiopia"
+                    data-ph-cash="Cash"
+                    placeholder="Commercial Bank of Ethiopia"
+                    <?= payment_method_is_cash($editMethod) ? '' : 'required' ?>
+                >
+            </div>
+            <div class="form-group">
+                <label for="account_name">Who collects / account holder</label>
+                <input id="account_name" name="account_name" value="<?= e($edit['account_name'] ?? '') ?>" placeholder="Class name or officer">
+            </div>
+            <div class="form-group" data-account-number-wrap>
+                <label class="req" for="account_number" data-account-number-label>Account or phone number</label>
+                <input
+                    id="account_number"
+                    name="account_number"
+                    value="<?= e($edit['account_number'] ?? '') ?>"
+                    data-account-number
+                    data-label-bank="Account or phone number"
+                    data-label-cash="Reference (optional)"
+                    data-ph-bank="The number students pay to"
+                    data-ph-cash="Leave blank for in-person cash"
+                    placeholder="The number students pay to"
+                    <?= payment_method_is_cash($editMethod) ? '' : 'required' ?>
+                >
+                <p class="muted" data-cash-hint <?= payment_method_is_cash($editMethod) ? '' : 'hidden' ?>>For cash, bank/wallet number is not needed. Students will see this as pay in person.</p>
+            </div>
+            <div class="form-group" data-hide-when-cash <?= payment_method_is_cash($editMethod) ? 'hidden' : '' ?>>
+                <label for="phone_number">Phone number</label>
+                <input id="phone_number" name="phone_number" value="<?= e($edit['phone_number'] ?? '') ?>" placeholder="If different from the account number">
+            </div>
             <div class="form-group"><label for="display_order">Order</label><input id="display_order" name="display_order" type="number" min="0" value="<?= e((string) ($edit['display_order'] ?? '0')) ?>"></div>
-            <div class="form-group full"><label for="notes">Note for students</label><input id="notes" name="notes" value="<?= e($edit['notes'] ?? '') ?>" placeholder="Branch, what to put in the remark, etc."></div>
+            <div class="form-group full">
+                <label for="notes">Note for students</label>
+                <input
+                    id="notes"
+                    name="notes"
+                    value="<?= e($edit['notes'] ?? '') ?>"
+                    data-account-notes
+                    data-ph-bank="Branch, what to put in the remark, etc."
+                    data-ph-cash="Where and when to bring cash"
+                    placeholder="<?= payment_method_is_cash($editMethod) ? 'Where and when to bring cash' : 'Branch, what to put in the remark, etc.' ?>"
+                >
+            </div>
             <div class="form-group full">
                 <label class="check"><input type="checkbox" name="is_active" value="1" <?= empty($edit) || !empty($edit['is_active']) ? 'checked' : '' ?>> Visible to students</label>
             </div>
